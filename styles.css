@@ -1,0 +1,14 @@
+@charset "utf-8";
+
+#config {
+	width: 400px;
+	margin: 0 auto;
+}
+
+#config-labels {
+	width:200px;	
+}
+
+#config-fields {
+	width: 200px;
+}
