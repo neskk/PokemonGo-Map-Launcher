@@ -63,43 +63,54 @@ sleep 1
 }
 
 if($_SERVER['REQUEST_METHOD'] == 'POST') {
+  print("debug:\n");
 	print_r($_POST);
-	echo "<br>\n";
-  print_r($_FILES);
+  print_r($_FILES);  
 	
+  
 	if(isset($_POST["path-pogomap"])) {
 		$path_pogomap = trim($_POST["path-pogomap"]);
 	}
+  
 	if(isset($_POST["path-pokealarm"])) {
 		$path_pokealarm = trim($_POST["path-pokealarm"]);
 	}
+  
 	if(isset($_POST["path-spclustering"])) {
 		$path_spclustering = trim($_POST["path-spclustering"]);
 	}
+  
 	if(isset($_POST["path-spawnpoints"])) {
 		$path_spawnpoints = trim($_POST["path-spawnpoints"]);
 	}
+  
 	if(isset($_POST["path-accounts"])) {
 		$path_accounts = trim($_POST["path-accounts"]);
 	}
+  
 	if(isset($_POST["screen-scanners"])) {
 		$screen_scanners = trim($_POST["screen-scanners"]);
 	}
+  
 	if(isset($_POST["screen-alarms"])) {
 		$screen_alarms = trim($_POST["screen-alarms"]);
 	}
 	if(isset($_POST["screen-dump-sp"])) {
 		$screen_dump_sp = trim($_POST["screen-dump-sp"]);
 	}
+  
 	if(isset($_POST["mysql-host"])) {
 		$mysql_host = trim($_POST["mysql-host"]);
 	}
+  
 	if(isset($_POST["mysql-database"])) {
 		$mysql_database = trim($_POST["mysql-database"]);
 	}
+  
 	if(isset($_POST["mysql-username"])) {
 		$mysql_username = trim($_POST["mysql-username"]);
 	}
+  
 	if(isset($_POST["mysql-password"])) {
 		$mysql_password = trim($_POST["mysql-password"]);
 	}
@@ -140,175 +151,165 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
 		$output_dump_sp = "dump-spawnpoints.sh";
 	}
   
-  if($_FILES['file-accounts']['size'] > 100000){
-    die("File '".$_FILES["file-accounts"]["name"]."' exceeds maximum upload size.");
+  
+  
+  // ##########################################################################
+  // read accounts
+  $file_accounts = $_FILES["file-accounts"]["tmp_name"];
+	$filename_accounts = $_FILES["file-accounts"]["name"];
+  
+  if($_FILES["file-accounts"]["error"] != UPLOAD_ERR_OK || $_FILES["file-accounts"]["size"] == 0) {
+    die("Accounts file upload error - code ".$_FILES["file-accounts"]["error"]);
   }
-  if($_FILES['file-alarms']['size'] > 100000){
-    die("File '".$_FILES["file-alarms"]["name"]."' exceeds maximum upload size.");
+  if($_FILES["file-accounts"]["size"] > 100000) {
+    die("File '$filename_accounts' exceeds maximum upload size.");
   }
-  if($_FILES['file-instances']['size'] > 100000){
-    die("File '".$_FILES["file-instances"]["name"]."' exceeds maximum upload size.");
-  }
-	
-	// read accounts
-  if ($_FILES["file-accounts"]["error"] == UPLOAD_ERR_OK) {
-		$file_accounts = $_FILES["file-accounts"]["tmp_name"];
-		$filename_accounts = $_FILES["file-accounts"]["name"];
-				
-		$read_handle = fopen($file_accounts, "r") or die("Unable to open file: $filename_accounts");
-		
-		$accounts = array();
-		$first = true;
-		
-		while (($line = trim(fgets($read_handle))) !== false) {
-		  if($first) {
-        $first = false;
-        
-        if(strcasecmp("service,username,password,banned", $line) == 0) {
-          // skip header line
-          continue;
-        } else {
-          exit("Data in $filename_accounts must have column headings.");
-        }
-		  }
-		
-		  // syntax: service,username,password,banned
-		  $account = explode(",", $line);
-		  
-		  $banned = trim($account[3]);
-		  
-		  if(!empty($banned) && $banned > 0) {
-        //echo "Debug: Skipped banned account '$account[1] : $account[2]'\n";
+ 
+  $read_handle = fopen($file_accounts, "r") or die("Unable to open file: $file_accounts");
+ 
+  $accounts = array();
+  $first = true;
+  
+  while (($line = fgets($read_handle)) !== false) {
+    if($first) {
+      $first = false;
+
+      if(strcasecmp("service,username,password,banned", trim($line)) == 0) {
+        // skip header line
         continue;
-		  }
-		  
-		  $accounts[] = $account;
-		}
+      } else {
+        exit("First line of '$filename_accounts' must be column headings: service,username,password,banned");
+      }
+    }
     
-		$total_accounts = count($accounts);
-		
-		// close read handle
-		fclose($read_handle);
-
-	} else {
-	  exit("Provide a file with accounts (syntax: service,username,password,banned)");
-	}
+    // syntax: service,username,password,banned
+    $account = explode(",", $line);
+    
+    $banned = trim($account[3]);
+    
+    if(!empty($banned) && $banned > 0) {
+      //echo "Debug: Skipped banned account '$account[1] : $account[2]'\n";
+      continue;
+    }
+    
+    $accounts[] = $account;
+  }
+  
+  $total_accounts = count($accounts);
+  
+  // close read handle
+  fclose($read_handle);
+  
+  
+	// ##########################################################################
+  // read alarms
+  $file_alarms = $_FILES["file-alarms"]["tmp_name"];
+	$filename_alarms = $_FILES["file-alarms"]["name"];
+  
+	if($_FILES["file-alarms"]["error"] != UPLOAD_ERR_OK || $_FILES["file-alarms"]["size"] == 0 ) {
+    die("Alarms file upload error - code ".$_FILES["file-alarms"]["error"]);
+  }
+  if($_FILES["file-alarms"]["size"] > 100000) {
+    die("File '$filename_alarms' exceeds maximum upload size.");
+  }
+  
+  $read_handle = fopen($file_alarms, "r") or die("Unable to open file: $file_alarms");
+  
+  $alarms = array();
+  $first = true;
+  
+  while (($line = fgets($read_handle)) !== false) {
+    if($first) {
+      $first = false;
+      
+      if(strcasecmp("enabled,address,port,location,name", trim($line)) == 0) {
+        // skip header line
+        continue;
+      } else {
+        exit("First line of '$filename_alarms' must be column headings: enabled,address,port,location,name");
+      }
+    }
+    
+    // syntax: enabled,address,port,location,name
+    $alarm = explode(",", $line);
+  
+    $enabled = trim($alarm[0]);
+    $name = trim($alarm[4]);
+    
+    if(!empty($enabled) && $enabled != "1") {
+      //echo "Debug: Skipped disabled alarm '$alarm[4] : $alarm[3]'\n";
+      continue;
+    }
+     
+    $alarms[$name] = $alarm;
+  }
+  $total_alarms = count($alarms);
+  
+  // close read handle
+  fclose($read_handle);
 	
-	if ($_FILES["file-alarms"]["error"] == UPLOAD_ERR_OK) {
-		$file_alarms = $_FILES["file-alarms"]["tmp_name"];
-		$filename_alarms = $_FILES["file-alarms"]["name"];
-				
-		$read_handle = fopen($file_alarms, "r") or die("Unable to open file: $filename_alarms");
-		
-		$alarms = array();
-		$first = true;
-		
-		while (($line = trim(fgets($read_handle))) !== false) {
-		  if($first) {
-        $first = false;
-        
-        if(strcasecmp("enabled,address,port,location,name", $line) == 0) {
-          // skip header line
-          continue;
-        } else {
-          exit("Data in $filename_alarms must have column headings.");
-        }
-		  }
-		  
-			// syntax: enabled,address,port,location,name
-			$alarm = explode(",", $line);
-		
-			$enabled = trim($alarm[0]);
-			$name = trim($alarm[4]);
-			
-			if(!empty($enabled) && $enabled != "1") {
-				//echo "Debug: Skipped disabled alarm '$alarm[4] : $alarm[3]'\n";
-				continue;
-			}
-			 
-			$alarms[$name] = $alarm;
-		}
-		$total_alarms = count($alarms);
-		
-		// close read handle
-		fclose($read_handle);
-
-	} else {
-	  exit("Provide a file with alarms (syntax: enabled,address,port,location,name)");
-	}
-	
-	if ($_FILES["file-instances"]["error"] == UPLOAD_ERR_OK) {
-		$file_instances = $_FILES["file-instances"]["tmp_name"];
-		$filename_instances = $_FILES["file-instances"]["name"];
-				
-		$read_handle = fopen($file_instances, "r") or die("Unable to open file: $filename_instances");
-		
-		$instances = array();
-		$first = true;
-		
-		while (($line = trim(fgets($read_handle))) !== false) {
-		  if($first) {
-        $first = false;
-        
-        if(strcasecmp("enabled,modes,location,name,st,sd,num_workers,num_accs,webhook", $line) == 0) {
-          // skip header line
-          continue;
-        } else {
-          exit("Data in $filename_instances must have column headings.");
-        }
-		  }
-		  
-			// syntax: enabled,modes,location,name,st,sd,num_workers,num_accs,webhook
-			$instance = explode(",", $line);
-		
-			$enabled = trim($instance[0]);
-			
-			if(!empty($enabled) && $enabled != "1") {
-				//echo "Debug: Skipped disabled instance '$instance[3] : $instance[2]'\n";
-				continue;
-			}
-			 
-			$instances[] = $instance;
-		}
-		$total_instances = count($instances);
-		
-		// close read handle
-		fclose($read_handle);
-	} else {
-		exit("Provide a file with instances (syntax: enabled,modes,location,name,st,sd,num_workers,num_accs,webhook)");
-	}
-
+	// ##########################################################################
+  // read instances
+  $file_instances = $_FILES["file-instances"]["tmp_name"];
+	$filename_instances = $_FILES["file-instances"]["name"];
+  
+	if($_FILES["file-instances"]["error"] != UPLOAD_ERR_OK || $_FILES["file-instances"]["size"] == 0 ) {
+    die("Instances file upload error - code ".$_FILES["file-instances"]["error"]);
+  }
+  if($_FILES["file-instances"]["size"] > 100000) {
+    die("File '$filename_instances' exceeds maximum upload size.");
+  }
+  
+  $read_handle = fopen($file_instances, "r") or die("Unable to open file: $file_instances");
+  
+  $instances = array();
+  $first = true;
+  
+  while (($line = fgets($read_handle)) !== false) {
+    if($first) {
+      $first = false;
+      
+      if(strcasecmp("enabled,modes,location,name,st,sd,workers,accounts,webhook", trim($line)) == 0) {
+        // skip header line
+        continue;
+      } else {
+        exit("First line of '$filename_instances' must be column headings: enabled,modes,location,name,st,sd,workers,accounts,webhook");
+      }
+    }
+    
+    // syntax: enabled,modes,location,name,st,sd,workers,accounts,webhook
+    $instance = explode(",", $line);
+  
+    $enabled = trim($instance[0]);
+    
+    if(!empty($enabled) && $enabled != "1") {
+      //echo "Debug: Skipped disabled instance '$instance[3] : $instance[2]'\n";
+      continue;
+    }
+     
+    $instances[] = $instance;
+  }
+  $total_instances = count($instances);
+  
+  // close read handle
+  fclose($read_handle);
+  
+  
 	// ##########################################################################
 	// cleanup
-	
+	/*
 	if (file_exists($path_spawnpoints) && is_dir($path_spawnpoints)) {
 	  rrmdir($path_spawnpoints);
-	  /*
-	  if(!rrmdir($path_spawnpoints."/")) {
-		echo "Error: Unable to clean $path_spawnpoints\n";
-	  }
-	  */
+	 
 	}
 	mkdir($path_spawnpoints, 0777, true);
 	
 	if (file_exists($path_accounts) && is_dir($path_accounts)) {
 	  rrmdir($path_accounts);
-	  /*
-	  if(!rrmdir($path_spawnpoints."/")) {
-		echo "Error: Unable to clean $path_spawnpoints\n";
-	  }
-	  */
 	}
 	
 	mkdir($path_accounts, 0777, true);
 	
-	/*
-	if (file_exists($log_dump)) {
-	  if(!unlink($log_dump)) {
-		echo "Error: Unable to clean $log_dump\n";
-	  }
-	}
-	*/
 
 	// ##########################################################################
 	// alarms
@@ -533,6 +534,8 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
   // close file handles
   fclose($output_scanners_handle);
   fclose($output_dump_sp_handle);
-
+  */
+} else {
+  echo "test OK";
 }
 ?>

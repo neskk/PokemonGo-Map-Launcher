@@ -108,6 +108,7 @@
           <div class="form-group">
             <label for="file-accounts" class="col-sm-4 control-label">Accounts</label>
             <div class="col-sm-8">
+              <input type="hidden" name="MAX_FILE_SIZE" value="100000" />
               <input type="file" class="form-control" id="file-accounts" name="file-accounts" accept=".csv">
               <p class="help-block">CSV syntax: service,username,password,banned</p>
             </div>
@@ -115,6 +116,7 @@
           <div class="form-group">
             <label for="file-alarms" class="col-sm-4 control-label">Alarms</label>
             <div class="col-sm-8">
+              <input type="hidden" name="MAX_FILE_SIZE" value="100000" />
               <input type="file" class="form-control" id="file-alarms" name="file-alarms" accept=".csv">
               <p class="help-block">CSV syntax: enabled,address,port,location,name</p>
             </div>
@@ -122,6 +124,7 @@
           <div class="form-group">
             <label for="file-instances" class="col-sm-4 control-label">Instaces</label>
             <div class="col-sm-8">
+              <input type="hidden" name="MAX_FILE_SIZE" value="100000" />
               <input type="file" class="form-control" id="file-instances" name="file-instances" accept=".csv">
               <p class="help-block">CSV syntax: enabled,modes,location,name,st,sd,num_workers,num_accs,webhook</p>
             </div>
