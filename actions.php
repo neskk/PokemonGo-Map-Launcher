@@ -139,9 +139,19 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
 	} else {
 		$output_dump_sp = "dump-spawnpoints.sh";
 	}
+  
+  if($_FILES['file-accounts']['size'] > 100000){
+    die("File '".$_FILES["file-accounts"]["name"]."' exceeds maximum upload size.");
+  }
+  if($_FILES['file-alarms']['size'] > 100000){
+    die("File '".$_FILES["file-alarms"]["name"]."' exceeds maximum upload size.");
+  }
+  if($_FILES['file-instances']['size'] > 100000){
+    die("File '".$_FILES["file-instances"]["name"]."' exceeds maximum upload size.");
+  }
 	
 	// read accounts
-	if ($_FILES["file-accounts"]["error"] == UPLOAD_ERR_OK) {
+  if ($_FILES["file-accounts"]["error"] == UPLOAD_ERR_OK) {
 		$file_accounts = $_FILES["file-accounts"]["tmp_name"];
 		$filename_accounts = $_FILES["file-accounts"]["name"];
 				
@@ -157,8 +167,9 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
         if(strcasecmp("service,username,password,banned", $line) == 0) {
           // skip header line
           continue;
+        } else {
+          exit("Data in $filename_accounts must have column headings.");
         }
-        exit("Data in $filename_accounts must have column headings.");
 		  }
 		
 		  // syntax: service,username,password,banned
@@ -199,8 +210,9 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
         if(strcasecmp("enabled,address,port,location,name", $line) == 0) {
           // skip header line
           continue;
+        } else {
+          exit("Data in $filename_alarms must have column headings.");
         }
-        exit("Data in $filename_alarms must have column headings.");
 		  }
 		  
 			// syntax: enabled,address,port,location,name
@@ -241,8 +253,9 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
         if(strcasecmp("enabled,modes,location,name,st,sd,num_workers,num_accs,webhook", $line) == 0) {
           // skip header line
           continue;
+        } else {
+          exit("Data in $filename_instances must have column headings.");
         }
-        exit("Data in $filename_instances must have column headings.");
 		  }
 		  
 			// syntax: enabled,modes,location,name,st,sd,num_workers,num_accs,webhook
