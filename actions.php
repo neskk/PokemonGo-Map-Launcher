@@ -1,6 +1,10 @@
 <?php
-header('Content-Type: text/plain');
+//header('Content-Type: text/plain');
 
+$PATH_TEMPLATES = "./templates";
+$PATH_TMP = "./tmp";
+
+// defaults
 $path_pogomap = "./PokemonGo-Map";
 $path_pokealarm = "./PokeAlarm";
 $path_ssclustering = $path_pogomap."/Tools/Spawnpoint-Clustering";
@@ -294,10 +298,33 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
   // close read handle
   fclose($read_handle);
   
-  
 	// ##########################################################################
+  // create script folders
+  
+  $tmp_id = uniqid();
+  $output_path = "$PATH_TMP/$tmp_id";
+  
+  mkdir($output_path, 0775, true);
+  
+  /*
+  mkdir("$output_path/$path_spawnpoints", 0775, true);
+  mkdir("$output_path/$path_accounts", 0775, true);
+  */
+  
+  $zip = new ZipArchive();
+
+  $output_filename = "$output_path/pogomap-launcher.zip";
+  
+  if ($zip->open($output_filename, ZipArchive::CREATE)!==TRUE) {
+      die("Unable to create output zip archive: $output_filename\n");
+  }
+  
+  
 	// cleanup
-	/*
+  // todo: this should go into a bash script?
+  
+  /*
+	
 	if (file_exists($path_spawnpoints) && is_dir($path_spawnpoints)) {
 	  rrmdir($path_spawnpoints);
 	 
@@ -309,15 +336,22 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
 	}
 	
 	mkdir($path_accounts, 0777, true);
-	
+	*/
 
 	// ##########################################################################
 	// alarms
+  
+  $content_alarms = "";
+  /*
 	$output_alarms_handle = fopen($output_alarms, "w+");
 	
 	// write bash script header
 	fwrite($output_alarms_handle, $timer_func);
 	fwrite($output_alarms_handle, start_screen($screen_alarms));
+  */
+  
+  $content_alarms .= $timer_func;
+  $content_alarms .= start_screen($screen_alarms);
 	
 	
 	$curr_alarm = 0;
@@ -344,19 +378,29 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
 		}
 		
 		$command .= "; exec bash'";
-		
+    
+    /*
 		fwrite($output_alarms_handle, $comment."\n");
 		fwrite($output_alarms_handle, $command."\n");
 		fwrite($output_alarms_handle, $message."\n\n");
+    */
+    
+    $content_alarms .= $comment."\n";
+		$content_alarms .= $command."\n";
+    $content_alarms .= $message."\n";
 		
 		// Don't include timer on last alarm
 		if($curr_alarm < $total_alarms) {
-			fwrite($output_alarms_handle, "timer 2\n\n");
+			//fwrite($output_alarms_handle, "timer 2\n\n");
+      $content_alarms .= "timer 2\n\n";
 		}
 	}
 	
 	// close write handle
-	fclose($output_alarms_handle);
+	//fclose($output_alarms_handle);
+  
+  // output alarms script
+  $zip->addFromString($output_alarms, $content_alarms);
 	
 	// ##########################################################################
 	// scanners
@@ -366,15 +410,26 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
 	$curr_account = 0;
 
   // open output file handles
-	$output_scanners_handle = fopen($output_scanners, "w+");
+	/*
+  $output_scanners_handle = fopen($output_scanners, "w+");
   $output_dump_sp_handle = fopen($output_dump_sp, "w+");
+  */
+  
+  $content_scanners = "";
+  $content_dump_sp = "";
 	
 	// write bash script header
-	fwrite($output_scanners_handle, $timer_func);
-	fwrite($output_scanners_handle, start_screen($screen_scanners));
+	//fwrite($output_scanners_handle, $timer_func);
+	//fwrite($output_scanners_handle, start_screen($screen_scanners));
+  
+  $content_scanners .= $timer_func;
+  $content_scanners .= start_screen($screen_scanners);
 
-	fwrite($output_dump_sp_handle, $timer_func);
-	fwrite($output_dump_sp_handle, start_screen($screen_dump_sp));
+	//fwrite($output_dump_sp_handle, $timer_func);
+	//fwrite($output_dump_sp_handle, start_screen($screen_dump_sp));
+  
+  $content_dump_sp .= $timer_func;
+  $content_dump_sp .= start_screen($screen_dump_sp);
 
 	$curr_instance = 0;
 	$error = false;
@@ -417,9 +472,14 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
 			fwrite($output_dump_sp_handle, $comment."\n");
 			fwrite($output_dump_sp_handle, $command_dump."\n\n");
 			fwrite($output_dump_sp_handle, $message."\n\n");
+      
+      $content_dump_sp .= $comment."\n";
+      $content_dump_sp .= $command_dump."\n\n";
+      $content_dump_sp .= $message."\n\n";
 			
 			if($curr_instance < $total_instances) {
-				fwrite($output_dump_sp_handle, "timer 5\n\n");
+				//fwrite($output_dump_sp_handle, "timer 5\n\n");
+        $content_dump_sp .= "timer 5\n\n";
 			}
 			
 			// append compressed spawnpoints file to -ss flag
@@ -455,7 +515,8 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
     if($accounts_to_file) {
       $output_accounts = "$path_accounts/accounts-$curr_instance.csv";
       
-      $output_accounts_handle = fopen($output_accounts, "w+");
+      //$output_accounts_handle = fopen($output_accounts, "w+");
+      $content_accounts = "";
       
 		  // select accounts for this instance
       for($i=0; $i<$num_accs; $i++) {
@@ -464,12 +525,16 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
         $user = trim($accounts[$curr_account][1]);
         $pass = trim($accounts[$curr_account][2]);
         
-        fwrite($output_accounts_handle, "$service,$user,$pass\n");
+        //fwrite($output_accounts_handle, "$service,$user,$pass\n");
+        $content_accounts .= "$service,$user,$pass\n";
        
         $curr_account++;
       }
       
-      fclose($output_accounts);
+      //fclose($output_accounts);
+      
+      $zip->addFromString($output_accounts, $content_accounts);
+      
       
       $command .= " -ac $output_accounts";
       
@@ -505,25 +570,42 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
 		}
 		$command .= "; exec bash'";
 		
-
+    /*
 		fwrite($output_scanners_handle, $comment."\n");
 		fwrite($output_scanners_handle, $command."\n");
 		fwrite($output_scanners_handle, $message."\n\n");
+    */
+    
+    $content_scanners .= $comment."\n";
+    $content_scanners .= $command."\n";
+    $content_scanners .= $message."\n\n";
     
     if($curr_instance < $total_instances) {
         
       // X*#workers+1 seconds of sleep between each instance launched
       $sleeptime = (4 * $num_workers) + 1;
       
-      fwrite($output_scanners_handle, "timer $sleeptime\n");
+      //fwrite($output_scanners_handle, "timer $sleeptime\n");
+      $content_scanners .= "timer $sleeptime\n";
     }
 		
 
 		if($curr_instance >= $max_instances) {
-      echo "Worker cutoff reached: $max_instances\n";
+      echo "Warning: worker cutoff reached: $max_instances\n";
       break;
     }
   }
+  
+  $zip->addFromString($output_alarms, $content_alarms);
+  
+  
+  $zip->addFromString("spawnpoints/readme.txt", "#2 This is a test string added as testfilephp2.txt.\n");
+  $zip->addFile("$path_spawnpoints/readme.txt","$PATH_TEMPLATES/spawnpoints_readme.txt");
+
+  echo "numfiles: " . $zip->numFiles . "\n";
+  echo "status:" . $zip->status . "\n";
+  $zip->close();
+  
 	
   // finalize dump-spawnpoints script
   $dump_message = "echo Compressing spawnpoints...";
@@ -536,6 +618,9 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
   fclose($output_dump_sp_handle);
   */
 } else {
-  echo "test OK";
+  
+
+  echo phpinfo();
+  
 }
 ?>
