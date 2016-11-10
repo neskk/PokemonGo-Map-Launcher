@@ -22,7 +22,7 @@ function rrmdir($dir) {
 function template_header($screen_session, $message) {
   global $PATH_TEMPLATES;
   
-  $filename = "$PATH_TEMPLATES/header.txt";
+  $filename = "$PATH_TEMPLATES/header";
   $read_handle = fopen($filename, "r");
   $format = fread($read_handle, filesize($filename));
   fclose($read_handle);
@@ -305,8 +305,6 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
   
   $zip->addEmptyDir($path_spawnpoints);
   $zip->addEmptyDir($path_accounts);
-  
-  //$zip->addFile("$PATH_TEMPLATES/spawnpoints_readme.txt");
   
 	// ##########################################################################
 	// alarms

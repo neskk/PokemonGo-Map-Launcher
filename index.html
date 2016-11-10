@@ -199,6 +199,8 @@ $(function() {
 });
 
 $("#form-config").submit(function(e) {
+  
+  $('#download-launcher').hide();
 	
 	var formData = new FormData($(this)[0]);
 
@@ -219,12 +221,10 @@ $("#form-config").submit(function(e) {
         var file_id = data['file'];
         
         if(file_id != '') {
-
-          $('#generate-launcher').hide();
-          //$('#download-launcher').show().attr("href", "download.php?id="+file_id);
-          
+          //$('#generate-launcher').hide();
+                   
           $('#download-launcher').show().click(function(e) { 
-            window.open("download.php?id="+file_id, '_blank');
+            window.open("download.php?id="+file_id);
           });
           
         } else {

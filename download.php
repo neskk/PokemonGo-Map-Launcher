@@ -25,7 +25,7 @@ if(file_exists($file)) {
       unlink($file);
   }
   unlink($file);
-  exit;
+  exit();
 }
 
 echo "File not found.";
