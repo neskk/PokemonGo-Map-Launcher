@@ -1,0 +1,1 @@
+This folder is where the spawnpoints will be dumped and then used in PokemonGo-Map.

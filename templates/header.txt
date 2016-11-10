@@ -1,0 +1,23 @@
+#!/bin/bash
+function timer() {
+  echo "Pausing for $1 seconds..."
+  i=0
+  while [ $i -lt $1 ]
+  do
+    echo "$i / $1 sec"
+    let "i+=1"
+    sleep 1
+  done
+}
+
+if screen -list | grep -q "%1$s"; then
+  echo Error: a screen session \"%1$s\" is already open!
+  sleep 0.5
+  echo Please terminate session \"%1$s\"  before launching.
+  sleep 3
+  exit
+fi
+
+screen -S "%1$s" -m -d
+sleep 1
+echo %2$s

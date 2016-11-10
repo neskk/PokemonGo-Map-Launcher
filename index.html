@@ -1,13 +1,14 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <title>PoGoTuga</title>
+  <title>PokemonGo-Map Launcher Generator</title>
   <meta charset="utf-8">
   <!-- Metadata -->
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="PokemonGo-Map Launcher">
+  <meta name="description" content="PokemonGo-Map Launcher Generator">
   <meta name="keywords" content="Pokémon Go, pogo, pokemon map, pokemon map launcher">
   <meta name="author" content="neskk">
+  <link type="text/css" rel="stylesheet" href="styles.css">
   <!-- CSS and External JavaScript -->
   <link rel="stylesheet" href="http://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
   <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.12.4/jquery.min.js"></script>
@@ -15,177 +16,188 @@
   
   <link type="text/css" rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/jsgrid/1.5.2/jsgrid.min.css" />
   <link type="text/css" rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/jsgrid/1.5.2/jsgrid-theme.min.css" />
-  <link href="styles.css" rel="stylesheet" type="text/css">
   <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/jsgrid/1.5.2/jsgrid.min.js"></script>
 
 </head>
 <body>
-
 <h2>PokemonGo-Map Launcher Generator</h2>
 <p>&nbsp;</p>
 <div class="container">
-    <div class="row">
-      <div class="col-md-8">
-      	
-        <form id="form-config" class="form-horizontal" action="actions.php" method="post" enctype="multipart/form-data">
-          <h4>Paths</h4>
-          <div class="form-group">
-            <label for="path-pogomap" class="col-sm-4 control-label">PokemonGo-Map Path</label>
-            <div class="col-sm-8">
-              <input type="text" class="form-control" id="path-pogomap" name="path-pogomap" placeholder="./PokemonGo-Map">
-            </div>
-          </div>
-          <div class="form-group">
-            <label for="path-pokealarm" class="col-sm-4 control-label">PokeAlert Path</label>
-            <div class="col-sm-8">
-              <input type="text" class="form-control" id="path-pokealarm" name="path-pokealarm" placeholder="./PokeAlarm">
-            </div>
-          </div>
-          <div class="form-group">
-            <label for="path-spclustering" class="col-sm-4 control-label">Spawnpoint Clustering Tool</label>
-            <div class="col-sm-8">
-              <input type="text" class="form-control" id="path-spclustering" name="path-spclustering" placeholder="/Tools/Spawnpoint-Clustering">
-            </div>
-          </div>
-          <div class="form-group">
-            <label for="path-spawnpoints" class="col-sm-4 control-label">Spawnpoint Dumps</label>
-            <div class="col-sm-8">
-              <input type="text" class="form-control" id="path-spawnpoints" name="path-spawnpoints" placeholder="./spawnpoints">
-            </div>
-          </div>
-          <div class="form-group">
-            <label for="path-accounts" class="col-sm-4 control-label">Account Dumps</label>
-            <div class="col-sm-8">
-              <input type="text" class="form-control" id="path-accounts" name="path-accounts" placeholder="./accounts">
-            </div>
-          </div>
-          <h4>Screen Session Names</h4>
-          <div class="form-group">
-            <label for="screen-scanners" class="col-sm-4 control-label">Scanners</label>
-            <div class="col-sm-8">
-              <input type="text" class="form-control" id="screen-scanners" name="screen-scanners" placeholder="scanners">
-            </div>
-          </div>
-          <div class="form-group">
-            <label for="screen-alarms" class="col-sm-4 control-label">Alarms</label>
-            <div class="col-sm-8">
-              <input type="text" class="form-control" id="screen-alarms" name="screen-alarms" placeholder="alarms">
-            </div>
-          </div>
-          <div class="form-group">
-            <label for="screen-dump-sp" class="col-sm-4 control-label">Dump Spawnpoints</label>
-            <div class="col-sm-8">
-              <input type="text" class="form-control" id="screen-dump-sp" name="screen-dump-sp" placeholder="dump-sp">
-            </div>
-          </div>
-          
-          <h4>MySQL Config</h4>
-          <div class="form-group">
-            <label for="mysql-host" class="col-sm-4 control-label">Hostname</label>
-            <div class="col-sm-8">
-              <input type="text" class="form-control" id="mysql-host" name="mysql-host" placeholder="localhost">
-            </div>
-          </div>
-          <div class="form-group">
-            <label for="mysql-database" class="col-sm-4 control-label">Database</label>
-            <div class="col-sm-8">
-              <input type="text" class="form-control" id="mysql-database" name="mysql-database" placeholder="pogomap">
-            </div>
-          </div>
-          <div class="form-group">
-            <label for="mysql-username" class="col-sm-4 control-label">Username</label>
-            <div class="col-sm-8">
-              <input type="text" class="form-control" id="mysql-username" name="mysql-username" placeholder="pogomap">
-            </div>
-          </div>
-          <div class="form-group">
-            <label for="mysql-password" class="col-sm-4 control-label">Username</label>
-            <div class="col-sm-8">
-              <input type="text" class="form-control" id="mysql-password" name="mysql-password" placeholder="p455w0rd">
-            </div>
-          </div>
-		  <h4>CSV File Imports</h4>
-          <div class="form-group">
-            <label for="file-accounts" class="col-sm-4 control-label">Accounts</label>
-            <div class="col-sm-8">
-              <input type="hidden" name="MAX_FILE_SIZE" value="100000" />
-              <input type="file" class="form-control" id="file-accounts" name="file-accounts" accept=".csv">
-              <p class="help-block">CSV syntax: service,username,password,banned</p>
-            </div>
-          </div>
-          <div class="form-group">
-            <label for="file-alarms" class="col-sm-4 control-label">Alarms</label>
-            <div class="col-sm-8">
-              <input type="hidden" name="MAX_FILE_SIZE" value="100000" />
-              <input type="file" class="form-control" id="file-alarms" name="file-alarms" accept=".csv">
-              <p class="help-block">CSV syntax: enabled,address,port,location,name</p>
-            </div>
-          </div>
-          <div class="form-group">
-            <label for="file-instances" class="col-sm-4 control-label">Instaces</label>
-            <div class="col-sm-8">
-              <input type="hidden" name="MAX_FILE_SIZE" value="100000" />
-              <input type="file" class="form-control" id="file-instances" name="file-instances" accept=".csv">
-              <p class="help-block">CSV syntax: enabled,modes,location,name,st,sd,num_workers,num_accs,webhook</p>
-            </div>
-          </div>
-          
-          <h4>Configuration</h4>
-          <div class="form-group">
-            <label for="max-instances" class="col-sm-4 control-label">Instance Limit</label>
-            <div class="col-sm-8">
-              <input type="text" class="form-control" id="max-instances" name="max-instances" placeholder="0">
-            </div>
-          </div>
-          <div class="form-group">
-            <div class="col-sm-offset-4 col-sm-8">
-              <div class="checkbox">
-                <label>
-                  <input type="checkbox" id="sp-clustering" name="sp-clustering" checked> Use Spawnpoint Clustering
-                </label>
-              </div>
-            </div>
-          </div>
-          <div class="form-group">
-            <div class="col-sm-offset-4 col-sm-8">
-              <div class="checkbox">
-                <label>
-                  <input type="checkbox" id="accounts-to-file" name="accounts-to-file" checked> Output accounts to a CSV file for each instance
-                </label>
-              </div>
-            </div>
-          </div>
-          
-          <h4>Output Filenames</h4>
-          <div class="form-group">
-            <label for="output-scanners" class="col-sm-4 control-label">Scanners</label>
-            <div class="col-sm-8">
-              <input type="text" class="form-control" id="output-scanners" name="output-scanners" placeholder="launch-scanners.sh">
-            </div>
-          </div>
-          <div class="form-group">
-            <label for="output-alarms" class="col-sm-4 control-label">Alarms</label>
-            <div class="col-sm-8">
-              <input type="text" class="form-control" id="output-alarms" name="output-alarms" placeholder="launch-alarms.sh">
-            </div>
-          </div>
-          <div class="form-group">
-            <label for="output-dump-sp" class="col-sm-4 control-label">Dump Spawnpoints</label>
-            <div class="col-sm-8">
-              <input type="text" class="form-control" id="output-dump-sp" name="output-dump-sp" placeholder="dump-spawnpoints.sh">
-            </div>
-          </div>
-          <div class="form-group">
-            <div class="col-sm-offset-4 col-sm-8">
-              <button type="submit" id="generate-launcher" class="btn btn-default">Generate Launcher</button>
-            </div>
-          </div>
-        </form>
-      </div>
-      <div class="col-md-4" id="result"></div>
+  <div class="row">
+    <div class="col-md-12">
+      <h4>Description</h4>
+      <p>todo</p>
     </div>
+  </div>
+  <form id="form-config" class="form-horizontal" action="actions.php" method="post" enctype="multipart/form-data">
+  <div class="row">
+    <div class="col-xs-12 col-md-6">
+      <h4>Paths</h4>
+      <div class="form-group">
+        <label for="path-pogomap" class="col-sm-4 control-label">PokemonGo-Map Path</label>
+        <div class="col-sm-8">
+          <input type="text" class="form-control" id="path-pogomap" name="path-pogomap" placeholder="PokemonGo-Map" value="PokemonGo-Map">
+        </div>
+      </div>
+      <div class="form-group">
+        <label for="path-pokealarm" class="col-sm-4 control-label">PokeAlert Path</label>
+        <div class="col-sm-8">
+          <input type="text" class="form-control" id="path-pokealarm" name="path-pokealarm" placeholder="PokeAlarm" value="PokeAlarm">
+        </div>
+      </div>
+      <div class="form-group">
+        <label for="path-spclustering" class="col-sm-4 control-label">Spawnpoint Clustering Tool</label>
+        <div class="col-sm-8">
+          <input type="text" class="form-control" id="path-spclustering" name="path-spclustering" placeholder="PokemonGo-Map/Tools/Spawnpoint-Clustering" value="PokemonGo-Map/Tools/Spawnpoint-Clustering">
+        </div>
+      </div>
+      <div class="form-group">
+        <label for="path-spawnpoints" class="col-sm-4 control-label">Spawnpoint Dumps</label>
+        <div class="col-sm-8">
+          <input type="text" class="form-control" id="path-spawnpoints" name="path-spawnpoints" placeholder="spawnpoints" value="spawnpoints">
+        </div>
+      </div>
+      <div class="form-group">
+        <label for="path-accounts" class="col-sm-4 control-label">Account Dumps</label>
+        <div class="col-sm-8">
+          <input type="text" class="form-control" id="path-accounts" name="path-accounts" placeholder="accounts" value="accounts">
+        </div>
+      </div>
+      <h4>Screen Session Names</h4>
+      <div class="form-group">
+        <label for="screen-scanners" class="col-sm-4 control-label">Scanners</label>
+        <div class="col-sm-8">
+          <input type="text" class="form-control" id="screen-scanners" name="screen-scanners" placeholder="scanners" value="scanners">
+        </div>
+      </div>
+      <div class="form-group">
+        <label for="screen-alarms" class="col-sm-4 control-label">Alarms</label>
+        <div class="col-sm-8">
+          <input type="text" class="form-control" id="screen-alarms" name="screen-alarms" placeholder="alarms" value="alarms">
+        </div>
+      </div>
+      <div class="form-group">
+        <label for="screen-dump-sp" class="col-sm-4 control-label">Dump Spawnpoints</label>
+        <div class="col-sm-8">
+          <input type="text" class="form-control" id="screen-dump-sp" name="screen-dump-sp" placeholder="dump-sp" value="dump-sp">
+        </div>
+      </div>
+      <h4>MySQL Config</h4>
+      <div class="form-group">
+        <label for="mysql-host" class="col-sm-4 control-label">Hostname</label>
+        <div class="col-sm-8">
+          <input type="text" class="form-control" id="mysql-host" name="mysql-host" placeholder="localhost" value="localhost">
+        </div>
+      </div>
+      <div class="form-group">
+        <label for="mysql-database" class="col-sm-4 control-label">Database</label>
+        <div class="col-sm-8">
+          <input type="text" class="form-control" id="mysql-database" name="mysql-database" placeholder="pogomap" value="pogomap">
+        </div>
+      </div>
+      <div class="form-group">
+        <label for="mysql-username" class="col-sm-4 control-label">Username</label>
+        <div class="col-sm-8">
+          <input type="text" class="form-control" id="mysql-username" name="mysql-username" placeholder="pogomap" value="pogomap">
+        </div>
+      </div>
+      <div class="form-group">
+        <label for="mysql-password" class="col-sm-4 control-label">Username</label>
+        <div class="col-sm-8">
+          <input type="text" class="form-control" id="mysql-password" name="mysql-password" placeholder="p455w0rd" value="p455w0rd">
+        </div>
+      </div>
+      
+    </div>
+    <div class="col-xs-12 col-md-6">
+      <h4>CSV File Imports</h4>
+      <div class="form-group">
+        <label for="file-accounts" class="col-sm-4 control-label">Accounts</label>
+        <div class="col-sm-8">
+          <input type="hidden" name="MAX_FILE_SIZE" value="100000" />
+          <input type="file" class="form-control" id="file-accounts" name="file-accounts" accept=".csv">
+          <p class="help-block">CSV syntax: service,username,password,banned</p>
+        </div>
+      </div>
+      <div class="form-group">
+        <label for="file-alarms" class="col-sm-4 control-label">Alarms</label>
+        <div class="col-sm-8">
+          <input type="hidden" name="MAX_FILE_SIZE" value="100000" />
+          <input type="file" class="form-control" id="file-alarms" name="file-alarms" accept=".csv">
+          <p class="help-block">CSV syntax: enabled,address,port,location,name</p>
+        </div>
+      </div>
+      <div class="form-group">
+        <label for="file-instances" class="col-sm-4 control-label">Instaces</label>
+        <div class="col-sm-8">
+          <input type="hidden" name="MAX_FILE_SIZE" value="100000" />
+          <input type="file" class="form-control" id="file-instances" name="file-instances" accept=".csv">
+          <p class="help-block">CSV syntax: enabled,modes,location,name,st,sd,num_workers,num_accs,webhook</p>
+        </div>
+      </div>
+      <h4>Output Filenames</h4>
+      <div class="form-group">
+        <label for="output-scanners" class="col-sm-4 control-label">Scanners</label>
+        <div class="col-sm-8">
+          <input type="text" class="form-control" id="output-scanners" name="output-scanners" placeholder="launch-scanners.sh" value="launch-scanners.sh">
+        </div>
+      </div>
+      <div class="form-group">
+        <label for="output-alarms" class="col-sm-4 control-label">Alarms</label>
+        <div class="col-sm-8">
+          <input type="text" class="form-control" id="output-alarms" name="output-alarms" placeholder="launch-alarms.sh" value="launch-alarms.sh">
+        </div>
+      </div>
+      <div class="form-group">
+        <label for="output-dump-sp" class="col-sm-4 control-label">Dump Spawnpoints</label>
+        <div class="col-sm-8">
+          <input type="text" class="form-control" id="output-dump-sp" name="output-dump-sp" placeholder="dump-spawnpoints.sh" value="dump-spawnpoints.sh">
+        </div>
+      </div>
+      
+      <h4>Configuration</h4>
+        <div class="form-group">
+          <label for="max-instances" class="col-sm-4 control-label">Instance Limit</label>
+          <div class="col-sm-8">
+            <input type="text" class="form-control" id="max-instances" name="max-instances" placeholder="0" value="0">
+          </div>
+        </div>
+        <div class="form-group">
+          <div class="col-sm-offset-4 col-sm-8">
+            <div class="checkbox">
+              <label>
+                <input type="checkbox" id="sp-clustering" name="sp-clustering" checked> Use Spawnpoint Clustering
+              </label>
+            </div>
+          </div>
+        </div>
+        <div class="form-group">
+          <div class="col-sm-offset-4 col-sm-8">
+            <div class="checkbox">
+              <label>
+                <input type="checkbox" id="accounts-to-file" name="accounts-to-file" checked> Output accounts to a CSV file for each instance
+              </label>
+            </div>
+          </div>
+        </div>
+      
+    </div>
+  </div>
+  <div class="row">
+    <div class="col-md-12 text-center">
+      <button type="submit" id="generate-launcher" class="btn btn-primary btn-md">Generate Launcher</button>
+      <button type="button" id="download-launcher" class="btn btn-primary btn-md">Download Launcher</button>
+      <div id="result-message" class="text-justify"></div>
+    </div>
+  </div>
+  </form>
 </div>
+
 <script>
+$(function() {
+    $('#download-launcher').hide();
+});
+
 $("#form-config").submit(function(e) {
 	
 	var formData = new FormData($(this)[0]);
@@ -200,11 +212,24 @@ $("#form-config").submit(function(e) {
 	$.ajax({
 			url: url,
 			type: 'post',
-			dataType: 'text',
+			dataType: 'json',
 			data: formData,
 			success: function(data) {
-				$('#result').html(data);
-		   		//$('#result').add();
+        var message = data['message'].replace(/(?:\r\n|\r|\n)/g, '<br />');
+        var file_id = data['file'];
+        
+        if(file_id != '') {
+
+          $('#generate-launcher').hide();
+          //$('#download-launcher').show().attr("href", "download.php?id="+file_id);
+          
+          $('#download-launcher').show().click(function(e) { 
+            window.open("download.php?id="+file_id, '_blank');
+          });
+          
+        } else {
+				  $('#result-message').html(message);
+        }
 			},
 			cache: false,
 			contentType: false,
