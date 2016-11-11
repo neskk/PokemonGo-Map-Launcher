@@ -117,11 +117,17 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
 	} else {
 		$max_instances = 1000000;
 	}
-	
-	if(isset($_POST["sp-clustering"]) && $_POST["sp-clustering"] == "on") {
+  
+  if(isset($_POST["sp-clustering"]) && $_POST["sp-clustering"] == "on") {
 		$sp_clustering = true;
 	} else {
 		$sp_clustering = false;
+	}
+	
+	if(isset($_POST["shuffle-accounts"]) && $_POST["shuffle-accounts"] == "on") {
+		$shuffle_accounts = true;
+	} else {
+		$shuffle_accounts = false;
 	}
 	
 	if(isset($_POST["accounts-to-file"]) && $_POST["accounts-to-file"] == "on") {
@@ -353,7 +359,9 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
 	// scanners
 
 	// randomize the accounts used for each instance
-	shuffle($accounts);
+  if($shuffle_accounts) {
+	  shuffle($accounts);
+  }
 	$curr_account = 0;
 
   $content_scanners = template_header($screen_scanners);

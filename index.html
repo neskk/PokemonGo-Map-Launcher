@@ -13,11 +13,13 @@
   <link rel="stylesheet" href="http://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
   <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.12.4/jquery.min.js"></script>
   <script src="http://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></script>
+  <!--
+  <script src="jquery.csv.min.js"></script>
   
   <link type="text/css" rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/jsgrid/1.5.2/jsgrid.min.css" />
   <link type="text/css" rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/jsgrid/1.5.2/jsgrid-theme.min.css" />
   <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/jsgrid/1.5.2/jsgrid.min.js"></script>
-
+  -->
 </head>
 <body>
 <h2>PokemonGo-Map Launcher Generator</h2>
@@ -26,7 +28,7 @@
   <div class="row">
     <div class="col-md-12">
       <h4>Description</h4>
-      <p>todo</p>
+      <p>This generator will output several Unix bash script files (.sh) that are able to launch instances of PokemonGo-Map. If you're using PokeAlert as a webhook server then a script will also be created to launch those instances.</p>
     </div>
   </div>
   <form id="form-config" class="form-horizontal" action="actions.php" method="post" enctype="multipart/form-data">
@@ -166,6 +168,15 @@
           <div class="col-sm-offset-4 col-sm-8">
             <div class="checkbox">
               <label>
+                <input type="checkbox" id="shuffle-accounts" name="shuffle-accounts" checked> Shuffle account list before assigning them
+              </label>
+            </div>
+          </div>
+        </div>
+        <div class="form-group">
+          <div class="col-sm-offset-4 col-sm-8">
+            <div class="checkbox">
+              <label>
                 <input type="checkbox" id="sp-clustering" name="sp-clustering" checked> Use Spawnpoint Clustering
               </label>
             </div>
@@ -185,8 +196,9 @@
   </div>
   <div class="row">
     <div class="col-md-12 text-center">
-      <button type="submit" id="generate-launcher" class="btn btn-primary btn-md">Generate Launcher</button>
-      <button type="button" id="download-launcher" class="btn btn-primary btn-md">Download Launcher</button>
+      <button type="submit" id="generate-launcher" class="btn btn-primary btn-md"><span class="glyphicon glyphicon-cog" aria-hidden="true"></span> Generate Launcher</button>
+      <button type="button" id="download-launcher" class="btn btn-primary btn-md"><span class="glyphicon glyphicon-download" aria-hidden="true"></span> Download Launcher</button>
+      <br />
       <div id="result-message" class="text-justify"></div>
     </div>
   </div>
@@ -237,6 +249,135 @@ $("#form-config").submit(function(e) {
 	});
 
 });
+</script>
+
+<script>
+  // http://stackoverflow.com/questions/34494032/loading-a-csv-file-into-an-html-table-using-javascript
+  // http://www.uselesscode.org/javascript/csv/demo/example-importing-exporting-csv.htm
+  
+  // https://mindmup.github.io/editable-table/
+  /*
+  $(document).ready(function() {
+    
+    // Bind to <input files>
+    if(isAPIAvailable()) {
+      $('#files').bind('change', handleFileSelect);
+    }
+  });
+  
+  // TODO: provide error message
+  function isAPIAvailable() {
+    // Check for the various File API support.
+    if (window.File && window.FileReader && window.FileList && window.Blob) {
+      // Great success! All the File APIs are supported.
+      return true;
+    } else {
+      // source: File API availability - http://caniuse.com/#feat=fileapi
+      // source: <output> availability - http://html5doctor.com/the-output-element/
+      document.writeln('The HTML5 APIs used in this form are only available in the following browsers:<br />');
+      // 6.0 File API & 13.0 <output>
+      document.writeln(' - Google Chrome: 13.0 or later<br />');
+      // 3.6 File API & 6.0 <output>
+      document.writeln(' - Mozilla Firefox: 6.0 or later<br />');
+      // 10.0 File API & 10.0 <output>
+      document.writeln(' - Internet Explorer: Not supported (partial support expected in 10.0)<br />');
+      // ? File API & 5.1 <output>
+      document.writeln(' - Safari: Not supported<br />');
+      // ? File API & 9.2 <output>
+      document.writeln(' - Opera: Not supported');
+      return false;
+    }
+  }
+  
+  function handleFileSelect(evt) {
+    var files = evt.target.files; // FileList object
+    var file = files[0];
+    // read the file metadata
+    var output = ''
+        output += '<span style="font-weight:bold;">' + escape(file.name) + '</span><br />\n';
+        output += ' - FileType: ' + (file.type || 'n/a') + '<br />\n';
+        output += ' - FileSize: ' + file.size + ' bytes<br />\n';
+        output += ' - LastModified: ' + (file.lastModifiedDate ? file.lastModifiedDate.toLocaleDateString() : 'n/a') + '<br />\n';
+    // read the file contents
+    printTable(file);
+    // post the results
+    $('#list').append(output);
+  }
+  
+  function printTable(file) {
+    var reader = new FileReader();
+    reader.readAsText(file);
+    reader.onload = function(event){
+      var csv = event.target.result;
+      var data = $.csv.toArrays(csv);
+      var html = '';
+      for(var row in data) {
+        html += '<tr>\r\n';
+        for(var item in data[row]) {
+          html += '<td>' + data[row][item] + '</td>\r\n';
+        }
+        html += '</tr>\r\n';
+      }
+      $('#contents').html(html);
+    };
+    reader.onerror = function(){ alert('Unable to read ' + file.fileName); };
+  }
+
+  // TODO: called when generated
+  function exportData() {
+    var i, j, arr = [], csv,
+    rxIsInt = /^\d+$/,
+    rxIsFloat = /^\d*\.\d+$|^\d+\.\d*$/,
+    rxQuotedNumber = /^"\d+"$|"\.\d+"$|^"\d+\.\d*"$/,
+    rows = $('#grid tr');
+  
+    // Walk the rows of the table and convert them into an array
+    rows.each( function() {
+      var row = [];
+      tds = $(this).find('td');
+      tds.each( function () {
+        var itm = $(this).text();
+        // Since everything in the table was conveted to text when inserted
+        // we have to convert it back to a number here before we pass it to 
+        // arrayToCsv so it handles them correctly.
+        if(rxIsInt.test(itm)) {
+          itm = parseInt(itm, 10);
+        } else if (rxIsFloat.test(itm)) {
+          itm = parseFloat(itm, 10);
+        // convert '*null*' to null
+        } else if (itm === '*null*') {
+          itm = null;
+        // don't escape quote quoted numbers
+        // instead interpret them as strings containg numbers
+        } else if (rxQuotedNumber.test(itm)) {
+          itm = itm.replace(/"/g, '')
+        }
+        row.push(itm);
+      });
+      arr.push(row);
+    });
+    
+    // Convert the array to csv
+    csv = $.csv.fromArrays(arr);
+    
+    
+    // display the generated csv in the textbox
+    //$('#inout').val(csv);
+  }
+  
+  function addRow() {
+    var i,
+        tdCount = $('#grid tr:last>td').length,
+        row = '<tr>';
+        for (i = 0; i < tdCount; i += 1) {
+          row += '<td>*null*</td>';
+        }
+        row += '</tr>';
+    $('#grid tr:last').after(row);
+  }
+  
+  // TODO: export file (save)
+  */
 </script>
 </body>
 </html>
