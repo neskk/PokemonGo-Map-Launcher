@@ -565,7 +565,7 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
   
   // include mysql database reset script
   $script_content = template_mysql_reset($mysql_username, $mysql_password, $mysql_database, $mysql_host);
-  echo "here";
+
   $zip->addFromString($MYSQL_RESET_SCRIPT_NAME, $script_content);
 
   $zip->close();
