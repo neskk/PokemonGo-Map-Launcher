@@ -4,6 +4,8 @@
 $PATH_TEMPLATES = "templates";
 $PATH_TMP = "tmp";
 
+$MYSQL_RESET_SCRIPT_NAME = "reset_database.sh";
+
 $log_dump = "dump-spawnpoints.log";
 
 function rrmdir($dir) {
@@ -22,12 +24,23 @@ function rrmdir($dir) {
 function template_header($screen_session, $message) {
   global $PATH_TEMPLATES;
   
-  $filename = "$PATH_TEMPLATES/header";
+  $filename = "$PATH_TEMPLATES/header.txt";
   $read_handle = fopen($filename, "r");
   $format = fread($read_handle, filesize($filename));
   fclose($read_handle);
   
   return sprintf($format, $screen_session, $message);
+}
+
+function template_mysql_reset($user, $pass, $db, $host) {
+  global $PATH_TEMPLATES;
+  
+  $filename = "$PATH_TEMPLATES/mysql_database_reset.txt";
+  $read_handle = fopen($filename, "r");
+  $format = fread($read_handle, filesize($filename));
+  fclose($read_handle);
+  
+  return sprintf($format, $user, $pass, $db, $host);
 }
 
 $response = [ "message" => "", "file" => ""];
@@ -134,6 +147,18 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
 		$accounts_to_file = true;
 	} else {
 		$accounts_to_file = false;
+	}
+	
+	if(isset($_POST["log-messages"]) && $_POST["log-messages"] == "on") {
+		$log_messages = true;
+	} else {
+		$log_messages = false;
+	}
+	
+	if(isset($_POST["log-filename"]) && !empty($_POST["log-filename"])) {
+		$log_filename = trim($_POST["log-filename"]);
+	} else {
+		$log_filename = "pokemongo-map.log";
 	}
 	
 	if(isset($_POST["output-scanners"]) && !empty($_POST["path-pogomap"])) {
@@ -497,6 +522,11 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
         }
       }
 		}
+		
+		if($log_messages) {
+      $command .= " -v $log_filename";
+    }
+    
 		$command .= "; exec bash'";
     
     $content_scanners .= $comment."\n";
@@ -532,6 +562,11 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
 
   $response["message"] .= "Launch script created: ".$zip->numFiles." files output.";
   $response["file"] = $tmp_id;
+  
+  // include mysql database reset script
+  $script_content = template_mysql_reset($mysql_username, $mysql_password, $mysql_database, $mysql_host);
+  echo "here";
+  $zip->addFromString($MYSQL_RESET_SCRIPT_NAME, $script_content);
 
   $zip->close();
   
@@ -540,7 +575,7 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
 
 } else {
   
-  print(template_header("test", "testing version 1.0"));
+  print(template_mysql_reset("test", "pw", "pogomap", "localhost"));
 
   //echo phpinfo();
   

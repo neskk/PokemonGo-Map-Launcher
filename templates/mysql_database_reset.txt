@@ -1,0 +1,66 @@
+#!/bin/bash
+
+MUSER="%1$s"
+MPASS="%2$s"
+MDB="%3$s"
+MHOST="%4$s"
+
+FILENAME="`date +"%%Y-%%m-%%d"`-$MDB.bak"
+
+PROCEED=true
+
+if [ -f "$FILENAME.tar.gz" ]
+then
+	echo "A previous backup '$FILENAME.tar.gz' was found."
+	echo "If you continue this file will be OVERWRITTEN."
+	read -r -p "Are you sure you want to delete $FILENAME.tar.gz? [y/N] " response
+  case $response in
+      [yY][eE][sS]|[yY]) 
+          PROCEED=true
+          ;;
+      *)
+          PROCEED=false
+          ;;
+  esac
+fi
+
+if [ $PROCEED == false ]
+then
+  exit 0
+fi
+
+# dump current database
+echo "Dumping tables from $MDB database..."
+mysqldump $MDB > $FILENAME.sql
+
+echo "Compressing $MDB database..."
+tar -zcvf $FILENAME.tar.gz $FILENAME.sql --remove-files
+
+# Detect paths
+MYSQL=$(which mysql)
+AWK=$(which awk)
+GREP=$(which grep)
+ 
+# make sure we can connect to server
+$MYSQL -u $MUSER -p$MPASS -h $MHOST -e "use $MDB"  &>/dev/null
+if [ $? -ne 0 ]
+then
+  echo "Error - Cannot connect to mysql server using given username, password or database does not exits!"
+  exit 2
+fi
+ 
+TABLES=$($MYSQL -u $MUSER -p$MPASS -h $MHOST $MDB -e 'show tables' | $AWK '{ print $1}' | $GREP -v '^Tables' )
+ 
+# make sure tables exits
+if [ "$TABLES" == "" ]
+then
+  echo "Error - No table found in $MDB database!"
+  exit 3
+fi
+ 
+# let us do it
+for t in $TABLES
+do
+  echo "Deleting $t table from $MDB database..."
+  $MYSQL -u $MUSER -p$MPASS -h $MHOST $MDB -e "drop table $t"
+done

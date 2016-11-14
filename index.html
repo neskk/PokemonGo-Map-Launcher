@@ -104,7 +104,7 @@
         </div>
       </div>
       <div class="form-group">
-        <label for="mysql-password" class="col-sm-4 control-label">Username</label>
+        <label for="mysql-password" class="col-sm-4 control-label">Password</label>
         <div class="col-sm-8">
           <input type="text" class="form-control" id="mysql-password" name="mysql-password" placeholder="p455w0rd" value="p455w0rd">
         </div>
@@ -191,7 +191,19 @@
             </div>
           </div>
         </div>
-      
+        <div class="form-group">
+          <div class="col-sm-offset-4 col-sm-8">
+            <div class="checkbox">
+              <label>
+                <input type="checkbox" id="log-messages" name="log-messages"> Output debug information to log file
+              </label>
+            </div>
+          </div>
+          <label for="log-filename" class="col-sm-4 control-label">Debug log filename</label>
+          <div class="col-sm-8">
+            <input type="text" class="form-control" id="log-filename" name="log-filename" placeholder="0" value="pokemongo-map.log">
+          </div>
+        </div>
     </div>
   </div>
   <div class="row">
@@ -207,12 +219,18 @@
 
 <script>
 $(function() {
-    $('#download-launcher').hide();
+  $('#download-launcher').hide();
+  
+  $('#download-launcher').click(function(e) { 
+    window.open($(this).attr("href"));
+  });
+  
 });
 
 $("#form-config").submit(function(e) {
   
   $('#download-launcher').hide();
+  $('#result-message').empty();
 	
 	var formData = new FormData($(this)[0]);
 
@@ -234,10 +252,10 @@ $("#form-config").submit(function(e) {
         
         if(file_id != '') {
           //$('#generate-launcher').hide();
-                   
-          $('#download-launcher').show().click(function(e) { 
-            window.open("download.php?id="+file_id);
-          });
+          var fileUrl = "download.php?id="+file_id;
+          
+          $('#download-launcher').attr("href", fileUrl);
+          $('#download-launcher').show();
           
         } else {
 				  $('#result-message').html(message);
