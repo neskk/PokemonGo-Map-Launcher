@@ -4,7 +4,7 @@ function timer() {
   i=0
   while [ $i -lt $1 ]
   do
-    echo "$i / $1 sec"
+    echo -ne "$i out of $1s"\\r
     let "i+=1"
     sleep 1
   done

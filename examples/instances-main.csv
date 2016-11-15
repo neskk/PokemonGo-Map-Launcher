@@ -1,0 +1,5 @@
+Enabled,Modes,Location,Name,ST,SD,Workers,Accounts,Webhook
+1,-os -nsc -fl -spp lalala --db-max_connections 0 --db-threads 0,38.72529159 -9.15002614,Server-Marques de Pombal,0,0,0,0,
+1,-P 5009 -bh,38.74790833 -9.18050408,Scanner On-Demand,3,10,7,14,all top-pokemon
+1,-ns -bh,38.711650561851016 -9.135934706336343,Baixa,2,12,19,38,all top-pokemon area-marques
+1,-ns -bh --db-threads 4 --wh-threads 2,38.725814586960674 -9.142234468473248,Saldanha-Anjos,2,12,37,74,all top-pokemon area-marques area-alameda

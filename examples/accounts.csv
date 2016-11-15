@@ -1,0 +1,5 @@
+Service,Username,Password,Banned
+ptc,user-ok1,pass1,0
+ptc,user-ok2,pass2,-1
+ptc,banned-user1,pass3,1
+ptc,banned-user2,pass4,2
