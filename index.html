@@ -67,6 +67,12 @@
       </div>
       <h4>Screen Session Names</h4>
       <div class="form-group">
+        <label for="screen-servers" class="col-sm-4 control-label">Servers</label>
+        <div class="col-sm-8">
+          <input type="text" class="form-control" id="screen-servers" name="screen-servers" placeholder="servers" value="servers">
+        </div>
+      </div>
+      <div class="form-group">
         <label for="screen-scanners" class="col-sm-4 control-label">Scanners</label>
         <div class="col-sm-8">
           <input type="text" class="form-control" id="screen-scanners" name="screen-scanners" placeholder="scanners" value="scanners">
@@ -139,6 +145,12 @@
       </div>
       <h4>Output Filenames</h4>
       <div class="form-group">
+        <label for="output-servers" class="col-sm-4 control-label">Servers</label>
+        <div class="col-sm-8">
+          <input type="text" class="form-control" id="output-servers" name="output-servers" placeholder="launch-servers.sh" value="launch-servers.sh">
+        </div>
+      </div>
+      <div class="form-group">
         <label for="output-scanners" class="col-sm-4 control-label">Scanners</label>
         <div class="col-sm-8">
           <input type="text" class="form-control" id="output-scanners" name="output-scanners" placeholder="launch-scanners.sh" value="launch-scanners.sh">
@@ -154,6 +166,12 @@
         <label for="output-dump-sp" class="col-sm-4 control-label">Dump Spawnpoints</label>
         <div class="col-sm-8">
           <input type="text" class="form-control" id="output-dump-sp" name="output-dump-sp" placeholder="dump-spawnpoints.sh" value="dump-spawnpoints.sh">
+        </div>
+      </div>
+      <div class="form-group">
+        <label for="output-pogo-captcha" class="col-sm-4 control-label">PoGo-Captcha</label>
+        <div class="col-sm-8">
+          <input type="text" class="form-control" id="output-pogo-captcha" name="output-pogo-captcha" placeholder="pogo-captcha.txt" value="pogo-captcha.txt">
         </div>
       </div>
       
@@ -223,6 +241,7 @@ $(function() {
   
   $('#download-launcher').click(function(e) { 
     window.open($(this).attr("href"));
+    $(this).hide();
   });
   
 });

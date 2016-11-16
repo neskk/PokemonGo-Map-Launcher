@@ -77,49 +77,55 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
     $path_spawnpoints = "spawnpoints";
   }
   
-	if(isset($_POST["path-accounts"]) && !empty($_POST["path-pogomap"])) {
+	if(isset($_POST["path-accounts"]) && !empty($_POST["path-accounts"])) {
 		$path_accounts = trim($_POST["path-accounts"]);
 	} else {
     $path_accounts = "accounts";
   }
   
-	if(isset($_POST["screen-scanners"]) && !empty($_POST["path-pogomap"])) {
+  if(isset($_POST["screen-servers"]) && !empty($_POST["screen-servers"])) {
+		$screen_servers = trim($_POST["screen-servers"]);
+	} else {
+    $screen_servers = "servers";
+  }
+  
+	if(isset($_POST["screen-scanners"]) && !empty($_POST["screen-scanners"])) {
 		$screen_scanners = trim($_POST["screen-scanners"]);
 	} else {
     $screen_scanners = "scanners";
   }
   
-	if(isset($_POST["screen-alarms"]) && !empty($_POST["path-pogomap"])) {
+	if(isset($_POST["screen-alarms"]) && !empty($_POST["screen-alarms"])) {
 		$screen_alarms = trim($_POST["screen-alarms"]);
 	} else {
     $screen_alarms = "alarms";
   }
   
-	if(isset($_POST["screen-dump-sp"]) && !empty($_POST["path-pogomap"])) {
+	if(isset($_POST["screen-dump-sp"]) && !empty($_POST["screen-dump-sp"])) {
 		$screen_dump_sp = trim($_POST["screen-dump-sp"]);
 	} else {
     $screen_dump_sp = "dump-sp";
   }
   
-	if(isset($_POST["mysql-host"]) && !empty($_POST["path-pogomap"])) {
+	if(isset($_POST["mysql-host"]) && !empty($_POST["mysql-host"])) {
 		$mysql_host = trim($_POST["mysql-host"]);
 	} else {
     $mysql_host = "localhost";
   }
   
-	if(isset($_POST["mysql-database"]) && !empty($_POST["path-pogomap"])) {
+	if(isset($_POST["mysql-database"]) && !empty($_POST["mysql-database"])) {
 		$mysql_database = trim($_POST["mysql-database"]);
 	} else {
     $mysql_database = "pogomap";
   }
   
-	if(isset($_POST["mysql-username"]) && !empty($_POST["path-pogomap"])) {
+	if(isset($_POST["mysql-username"]) && !empty($_POST["mysql-username"])) {
 		$mysql_username = trim($_POST["mysql-username"]);
 	} else {
     $mysql_username = "pogomap";
   }
   
-	if(isset($_POST["mysql-password"]) && !empty($_POST["path-pogomap"])) {
+	if(isset($_POST["mysql-password"]) && !empty($_POST["mysql-password"])) {
 		$mysql_password = trim($_POST["mysql-password"]);
 	} else {
     $mysql_password = "";
@@ -161,24 +167,35 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
 		$log_filename = "pokemongo-map.log";
 	}
 	
-	if(isset($_POST["output-scanners"]) && !empty($_POST["path-pogomap"])) {
+	if(isset($_POST["output-servers"]) && !empty($_POST["output-servers"])) {
+		$output_servers = trim($_POST["output-servers"]);
+	} else {
+		$output_servers = "launch-servers.sh";
+	}
+	
+	if(isset($_POST["output-scanners"]) && !empty($_POST["output-scanners"])) {
 		$output_scanners = trim($_POST["output-scanners"]);
 	} else {
 		$output_scanners = "launch-scanners.sh";
 	}
 	
-	if(isset($_POST["output-alarms"]) && !empty($_POST["path-pogomap"])) {
+	if(isset($_POST["output-alarms"]) && !empty($_POST["output-alarms"])) {
 		$output_alarms = trim($_POST["output-alarms"]);
 	} else {
 		$output_alarms = "launch-alarms.sh";
 	}
 	
-	if(isset($_POST["output-dump-sp"]) && !empty($_POST["path-pogomap"])) {
+	if(isset($_POST["output-dump-sp"]) && !empty($_POST["output-dump-sp"])) {
 		$output_dump_sp = trim($_POST["output-dump-sp"]);
 	} else {
 		$output_dump_sp = "dump-spawnpoints.sh";
 	}
   
+  if(isset($_POST["output-pogo-captcha"]) && !empty($_POST["output-pogo-captcha"])) {
+		$output_pogo_captcha = trim($_POST["output-pogo-captcha"]);
+	} else {
+		$output_pogo_captcha = "pogo-captcha.txt";
+	}
   
   // ##########################################################################
   // read accounts
@@ -313,7 +330,7 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
       //echo "Debug: Skipped disabled instance '$instance[3] : $instance[2]'<br>";
       continue;
     }
-     
+
     $instances[] = $instance;
   }
   $total_instances = count($instances);
@@ -388,11 +405,14 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
 	  shuffle($accounts);
   }
 	$curr_account = 0;
-
+  
+  $content_servers = template_header($screen_servers);
   $content_scanners = template_header($screen_scanners);
   $content_dump_sp = template_header($screen_dump_sp);
+  $content_pogo_captcha = "";
 
-	$curr_instance = 0;
+	$curr_server = 0;
+	$curr_scanner = 0;
 	$error = false;
   $dump_sp_required = false;
 	
@@ -406,19 +426,44 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
 		$num_workers = trim($instance[6]);
 		$num_accs = trim($instance[7]);
 		$webhook = trim($instance[8]);
+		
+		// sanitize names
+    $clean_name = str_replace(" ", "_", strtolower($name));
+    
+    // separate server instances
+    if(preg_match("/-os/i", $modes)) {
+      $curr_server++;
 
-		// increment instance number so it matches screen's window number
-		$curr_instance++;
+      $comment = "# $curr_server $name | $modes  --------------------";
+      $message = "echo \# Server $curr_server: $name $modes";
+      $command = "screen -S \"$screen_servers\" -x -X screen bash -c 'python $path_pogomap/runserver.py $modes -sn \"0$curr_server - $name\" -l \"$location\"";
+      
+      if($log_messages) {
+        $command .= " -v $log_filename";
+      }
+      
+      $command .= "; exec bash'";
+      
+      $content_servers .= $comment."\n";
+      $content_servers .= $command."\n";
+      $content_servers .= $message."\n\n";
+      $content_servers .= "timer 3\n";
+      
+      continue;
+		}
+
+		// increment scanner number so it matches screen's window number
+		$curr_scanner++;
     
     if($curr_account+$num_accs > $total_accounts) {
-      $response["message"] .= "Insufficient accounts, script stopped at instance #$curr_instance: $name\n";
+      $response["message"] .= "Insufficient accounts, script stopped at instance #$curr_scanner: $name\n";
 			break;
 		}
   
 		// write output script
-		$comment = "# $curr_instance $name | $modes | st: $st | sd: $sd | w: $num_workers | accs: $num_accs --------------------";
+		$comment = "# $curr_scanner $name | $modes | st: $st | sd: $sd | w: $num_workers | accs: $num_accs --------------------";
 		
-		$message = "echo \# $curr_instance $name $modes -st $st -sd $sd -w $num_workers -accs $num_accs";
+		$message = "echo \# $curr_scanner $name $modes -st $st -sd $sd -w $num_workers -accs $num_accs";
   
 		// spawnpoint clustering
 		if($sp_clustering && preg_match("/-ss/i", $modes)) {
@@ -429,8 +474,8 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
 			$dump_user = trim($accounts[$curr_account][1]);
 			$dump_pass = trim($accounts[$curr_account][2]);
 			
-			$output_spawns = "$path_spawnpoints/spawns-$curr_instance.json";
-			$output_compressed = "$path_spawnpoints/compressed-$curr_instance.json";
+			$output_spawns = "$path_spawnpoints/spawns-$curr_scanner.json";
+			$output_compressed = "$path_spawnpoints/compressed-$curr_scanner.json";
 			
 			$command_clustering = "python $path_ssclustering/cluster.py $output_spawns -os $output_compressed -r 70 -t 180";
 			  
@@ -440,7 +485,7 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
       $content_dump_sp .= $command_dump."\n\n";
       $content_dump_sp .= $message."\n\n";
 			
-			if($curr_instance < $total_instances) {
+			if($curr_scanner < $total_instances) {
         $content_dump_sp .= "timer 5\n\n";
 			}
 			
@@ -448,7 +493,7 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
 			$modes = preg_replace('/-ss/i', "-ss $output_compressed", $modes);
 		}
   
-		$command = "screen -S \"$screen_scanners\" -x -X screen bash -c 'python $path_pogomap/runserver.py $modes -sn \"$name\" -l \"$location\"";
+		$command = "screen -S \"$screen_scanners\" -x -X screen bash -c 'python $path_pogomap/runserver.py $modes -sn \"$curr_scanner - $name\" -l \"$location\"";
 		
 		// disable db cleanup cycle if instance is not "only-server"
 		if(!preg_match("/-os/i", $modes)) {
@@ -487,8 +532,11 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
         }
         
         // output accounts
-        $output_accounts = "$path_accounts/accounts-$curr_instance.csv";
+        $output_accounts = "$path_accounts/accounts-$curr_scanner-$clean_name.csv";
         $zip->addFromString($output_accounts, $content_accounts);
+        
+        // pogo captcha content
+        $content_pogo_captcha .= "python pogo-captcha.py -ac $output_accounts -l \"".str_replace(" ", ",", $location)."\"\n";
         
         $command .= " -ac $output_accounts";
         
@@ -533,7 +581,7 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
     $content_scanners .= $command."\n";
     $content_scanners .= $message."\n\n";
     
-    if($curr_instance < $total_instances) {
+    if($curr_scanner < $total_instances) {
       // TODO: front-end to adjust sleep times
       // X*#workers+1 seconds of sleep between each instance launched
       $sleeptime = (4 * $num_workers) + 1;
@@ -541,7 +589,7 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
     }
 		
 
-		if($curr_instance >= $max_instances) {
+		if($curr_scanner >= $max_instances) {
       $response["message"] .= "Warning: instance cutoff reached at $max_instances\n";
       break;
     }
@@ -552,8 +600,20 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
   $content_dump_sp .= "timer 60\n";
   $content_dump_sp .= "screen -X -S \"$screen_dump_sp\" quit\n";
   
+  // output servers script
+  if($curr_server > 0) {
+    $zip->addFromString($output_servers, $content_servers);
+  }
+  
   // output scanners script
-  $zip->addFromString($output_scanners, $content_scanners);
+  if($curr_scanner > 0) {
+    $zip->addFromString($output_scanners, $content_scanners);
+    
+    // output pogo captcha
+    if($accounts_to_file) {
+      $zip->addFromString($output_pogo_captcha, $content_pogo_captcha);
+    }
+  }
   
   // output dump spawnpoints script
   if($dump_sp_required) {
