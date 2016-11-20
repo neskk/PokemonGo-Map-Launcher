@@ -52,6 +52,12 @@ function quit($message) {
 }
 
 if($_SERVER['REQUEST_METHOD'] == 'POST') {
+  
+  if(isset($_POST["path-base"]) && !empty($_POST["path-base"])) {
+		$path_base = trim($_POST["path-base"]);
+	} else {
+    $path_base = "~";
+  }
 
 	if(isset($_POST["path-pogomap"]) && !empty($_POST["path-pogomap"])) {
 		$path_pogomap = trim($_POST["path-pogomap"]);
@@ -266,11 +272,11 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
     if($first) {
       $first = false;
       
-      if(strcasecmp("enabled,address,port,location,name", trim($line)) == 0) {
+      if(strcasecmp("enabled,name,address,port,location,config,api", trim($line)) == 0) {
         // skip header line
         continue;
       } else {
-        quit("First line of alarms CSV file must be column headings: enabled,address,port,location,name");
+        quit("First line of alarms CSV file must be column headings: enabled,name,address,port,location,config,api");
       }
     }
     
@@ -278,7 +284,7 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
     $alarm = explode(",", $line);
   
     $enabled = trim($alarm[0]);
-    $name = trim($alarm[4]);
+    $name = trim($alarm[1]);
 
     if($enabled != "1") {
       //echo "Debug: Skipped disabled alarm '$alarm[4] : $alarm[3]'<br>";
@@ -363,20 +369,22 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
 	
 	foreach($alarms as $alarm) {
 		$enabled = trim($alarm[0]);
-		$address = trim($alarm[1]);
-		$port = trim($alarm[2]);
-		$location = trim($alarm[3]);
-		$name = trim($alarm[4]);
+		$name = trim($alarm[1]);
+		$address = trim($alarm[2]);
+		$port = trim($alarm[3]);
+		$location = trim($alarm[4]);
+		$config = trim($alarm[5]);
+		$api_key = trim($alarm[6]);
 		
 		// increment alarm number so it matches screen's window number
 		$curr_alarm++;
 		
-		$comment = "# $curr_alarm $name -host $address:$port -loc $location --------------------";
+		$comment = "# $curr_alarm $name -host $address:$port -loc $location -c $config --------------------";
 		
-		$message = "echo \# $curr_alarm $name -host $address:$port -loc $location";
+		$message = "echo \# $curr_alarm $name -host $address:$port -loc $location -c $config";
 		
 		// command to output
-		$command = "screen -S \"$screen_alarms\" -x -X screen bash -c 'python $path_pokealarm/runwebhook.py -P $port -c alarms-$name.json";
+		$command = "screen -S \"$screen_alarms\" -x -X screen bash -c 'python $path_base/$path_pokealarm/runwebhook.py -P $port -c $config -k $api_key";
 		
 		if(isset($location) && !empty($location)) {
 		  $command .= " -l \"$location\"";
@@ -436,7 +444,7 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
 
       $comment = "# $curr_server $name | $modes  --------------------";
       $message = "echo \# Server $curr_server: $name $modes";
-      $command = "screen -S \"$screen_servers\" -x -X screen bash -c 'python $path_pogomap/runserver.py $modes -sn \"0$curr_server - $name\" -l \"$location\"";
+      $command = "screen -S \"$screen_servers\" -x -X screen bash -c 'python $path_base/$path_pogomap/runserver.py $modes -sn \"0$curr_server - $name\" -l \"$location\"";
       
       if($log_messages) {
         $command .= " -v $log_filename";
@@ -447,7 +455,7 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
       $content_servers .= $comment."\n";
       $content_servers .= $command."\n";
       $content_servers .= $message."\n\n";
-      $content_servers .= "timer 3\n";
+      $content_servers .= "sleep 1\n";
       
       continue;
 		}
@@ -474,12 +482,12 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
 			$dump_user = trim($accounts[$curr_account][1]);
 			$dump_pass = trim($accounts[$curr_account][2]);
 			
-			$output_spawns = "$path_spawnpoints/spawns-$curr_scanner.json";
-			$output_compressed = "$path_spawnpoints/compressed-$curr_scanner.json";
+			$output_spawns = "$path_base/$path_spawnpoints/spawns-$curr_scanner.json";
+			$output_compressed = "$path_base/$path_spawnpoints/compressed-$curr_scanner.json";
 			
-			$command_clustering = "python $path_ssclustering/cluster.py $output_spawns -os $output_compressed -r 70 -t 180";
+			$command_clustering = "python $path_base/$path_ssclustering/cluster.py $output_spawns -os $output_compressed -r 70 -t 180";
 			  
-			$command_dump = "screen -S \"$screen_dump_sp\" -x -X screen bash -c 'timeout -sHUP 60s python $path_pogomap/runserver.py -P 5010 -l \"$location\" -st $st -u $dump_user -p $dump_pass -ss $output_spawns --dump-spawnpoints; $command_clustering >> $log_dump'";
+			$command_dump = "screen -S \"$screen_dump_sp\" -x -X screen bash -c 'timeout -sHUP 60s python $path_base/$path_pogomap/runserver.py -P 5010 -l \"$location\" -st $st -u $dump_user -p $dump_pass -ss $output_spawns --dump-spawnpoints; $command_clustering >> $log_dump'";
 			 
       $content_dump_sp .= $comment."\n";
       $content_dump_sp .= $command_dump."\n\n";
@@ -493,7 +501,7 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
 			$modes = preg_replace('/-ss/i', "-ss $output_compressed", $modes);
 		}
   
-		$command = "screen -S \"$screen_scanners\" -x -X screen bash -c 'python $path_pogomap/runserver.py $modes -sn \"$curr_scanner - $name\" -l \"$location\"";
+		$command = "screen -S \"$screen_scanners\" -x -X screen bash -c 'python $path_base/$path_pogomap/runserver.py $modes -sn \"$curr_scanner - $name\" -l \"$location\"";
 		
 		// disable db cleanup cycle if instance is not "only-server"
 		if(!preg_match("/-os/i", $modes)) {
@@ -509,7 +517,7 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
 			  // -asi: seconds for accounts to search before switching to a new account. 0 to disable.
 			  $asi = 8 * 60 * 60;
 			  // -ari: Seconds for accounts to rest when they fail or are switched out. 0 to disable.
-			  $ari = 4 * 60 * 60;
+			  $ari = 2 * 60 * 60;
 			  $command .= " -asi $asi -ari $ari";
 			}
 		}
@@ -538,7 +546,7 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
         // pogo captcha content
         $content_pogo_captcha .= "python pogo-captcha.py -ac $output_accounts -l \"".str_replace(" ", ",", $location)."\"\n";
         
-        $command .= " -ac $output_accounts";
+        $command .= " -ac $path_base/$output_accounts";
         
       } else {
         // select accounts for this instance
@@ -563,8 +571,8 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
         $webhook = trim($webhook);
         
         if(array_key_exists($webhook, $alarms)) {
-          $alarm_wh_address = $alarms[$webhook][1];
-          $alarm_wh_port = $alarms[$webhook][2];
+          $alarm_wh_address = $alarms[$webhook][2];
+          $alarm_wh_port = $alarms[$webhook][3];
           
           $command .= " http://$alarm_wh_address:$alarm_wh_port";
         }
@@ -603,6 +611,10 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
   // output servers script
   if($curr_server > 0) {
     $zip->addFromString($output_servers, $content_servers);
+    
+    $shutdown_servers = "screen -X -S \"$screen_servers\" quit\n";
+    $shutdown_servers .= "echo Screen session \"$screen_servers\" terminated.\n";
+    $zip->addFromString("shutdown-servers.sh", $shutdown_servers);
   }
   
   // output scanners script
@@ -613,6 +625,10 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
     if($accounts_to_file) {
       $zip->addFromString($output_pogo_captcha, $content_pogo_captcha);
     }
+    
+    $shutdown_scanners = "screen -X -S \"$screen_scanners\" quit\n";
+    $shutdown_scanners .= "echo Screen session \"$screen_scanners\" terminated.\n";
+    $zip->addFromString("shutdown-scanners.sh", $shutdown_scanners);
   }
   
   // output dump spawnpoints script
