@@ -89,6 +89,12 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
     $path_accounts = "accounts";
   }
   
+  if(isset($_POST["path-proxies"]) && !empty($_POST["path-proxies"])) {
+		$path_proxies = trim($_POST["path-proxies"]);
+	} else {
+    $path_proxies = "proxies";
+  }
+  
   if(isset($_POST["screen-servers"]) && !empty($_POST["screen-servers"])) {
 		$screen_servers = trim($_POST["screen-servers"]);
 	} else {
@@ -160,12 +166,6 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
 	} else {
 		$account_rest_interval = 7200;
 	}
-  
-  if(isset($_POST["sp-clustering"]) && $_POST["sp-clustering"] == "on") {
-		$sp_clustering = true;
-	} else {
-		$sp_clustering = false;
-	}
 	
 	if(isset($_POST["shuffle-accounts"]) && $_POST["shuffle-accounts"] == "on") {
 		$shuffle_accounts = true;
@@ -179,6 +179,12 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
 		$accounts_to_file = false;
 	}
   
+  if(isset($_POST["sp-clustering"]) && $_POST["sp-clustering"] == "on") {
+		$sp_clustering = true;
+	} else {
+		$sp_clustering = false;
+	}
+  
   if(isset($_POST["enable-proxies"]) && $_POST["enable-proxies"] == "on") {
 		$enable_proxies = true;
 	} else {
@@ -189,6 +195,12 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
 		$shuffle_proxies = true;
 	} else {
 		$shuffle_proxies = false;
+	}
+  
+  if(isset($_POST["proxies-to-file"]) && $_POST["proxies-to-file"] == "on") {
+		$proxies_to_file = true;
+	} else {
+		$proxies_to_file = false;
 	}
 	
 	if(isset($_POST["log-messages"]) && $_POST["log-messages"] == "on") {
@@ -512,7 +524,7 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
       $proxies_per_instance = floor($total_proxies / $total_scanners);
       
       // threshold
-      if($proxies_per_instance > 10) {
+      if(!$proxies_to_file && $proxies_per_instance > 10) {
         $proxies_per_instance = 10;
       }
     }
@@ -686,14 +698,31 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
 		}
     
     if($enable_proxies && $proxies_per_instance > 0) {
+      $command .= " -me 10 -pxt 1 -pxr 3600 -pxo round";
       
-      for($i=0; $i < $proxies_per_instance; $i++) {
-        $ip_port = $proxies[$curr_proxy];
+      if($proxies_to_file) {
+        $content_proxies = "";
         
-        $command .= " -px socks5://$ip_port";
-        $curr_proxy++;
+        for($i=0; $i < $proxies_per_instance; $i++) {
+          $ip_port = $proxies[$curr_proxy];
+          
+          $content_proxies .= "socks5://$ip_port\n";
+          $curr_proxy++;
+        }
+        
+        $output_proxies = "$path_proxies/proxies-$curr_scanner-$clean_name.txt";
+        $zip->addFromString($output_proxies, $content_proxies);
+        
+        $command .= " -pxf $path_base/$output_proxies";
+        
+      } else {
+        for($i=0; $i < $proxies_per_instance; $i++) {
+          $ip_port = $proxies[$curr_proxy];
+          
+          $command .= "-px socks5://$ip_port";
+          $curr_proxy++;
+        }
       }
-      
     }
     
 		if($log_messages) {

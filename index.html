@@ -71,6 +71,12 @@
           <input type="text" class="form-control" id="path-accounts" name="path-accounts" placeholder="accounts" value="accounts">
         </div>
       </div>
+      <div class="form-group">
+        <label for="path-proxies" class="col-sm-4 control-label">Proxy List Dumps</label>
+        <div class="col-sm-8">
+          <input type="text" class="form-control" id="path-proxies" name="path-proxies" placeholder="proxies" value="proxies">
+        </div>
+      </div>
       <h4>Screen Session Names</h4>
       <div class="form-group">
         <label for="screen-servers" class="col-sm-4 control-label">Servers</label>
@@ -227,7 +233,7 @@
           <div class="col-sm-offset-4 col-sm-8">
             <div class="checkbox">
               <label>
-                <input type="checkbox" id="sp-clustering" name="sp-clustering" checked> Use Spawnpoint Clustering
+                <input type="checkbox" id="accounts-to-file" name="accounts-to-file" checked> Output accounts to a CSV file for each instance
               </label>
             </div>
           </div>
@@ -236,7 +242,7 @@
           <div class="col-sm-offset-4 col-sm-8">
             <div class="checkbox">
               <label>
-                <input type="checkbox" id="accounts-to-file" name="accounts-to-file" checked> Output accounts to a CSV file for each instance
+                <input type="checkbox" id="sp-clustering" name="sp-clustering" checked> Use Spawnpoint Clustering
               </label>
             </div>
           </div>
@@ -255,6 +261,15 @@
             <div class="checkbox">
               <label>
                 <input type="checkbox" id="shuffle-proxies" name="shuffle-proxies" checked> Shuffle proxy list before assigning them
+              </label>
+            </div>
+          </div>
+        </div>
+        <div class="form-group">
+          <div class="col-sm-offset-4 col-sm-8">
+            <div class="checkbox">
+              <label>
+                <input type="checkbox" id="proxies-to-file" name="proxies-to-file" checked> Output proxies to a text file for each instance
               </label>
             </div>
           </div>
