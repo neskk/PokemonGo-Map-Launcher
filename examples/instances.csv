@@ -1,0 +1,4 @@
+Enabled,Modes,Location,Name,ST,SD,Workers,Accounts,Webhook
+1,-os -nsc -fl -spp lalala --db-max_connections 0 --db-threads 0,40.78099638 -73.9724546,Main Server,0,0,0,0,all top-pokemon
+1,-ns,40.78099638 -73.9724546,Central-Park,8,30,19,38,all top-pokemon area-central-park
+1,-ns --db-threads 4 --wh-threads 2,40.67813201 -73.9445436,Brooklyn,8,30,19,38,all top-pokemon area-brooklyn

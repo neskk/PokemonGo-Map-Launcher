@@ -143,6 +143,24 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
 		$max_instances = 1000000;
 	}
   
+  if(isset($_POST["time-delay-worker"]) && is_numeric($_POST["time-delay-worker"]) && $_POST["time-delay-worker"] > 0) {
+		$time_delay_worker = $_POST["time-delay-worker"];
+	} else {
+		$time_delay_worker = 1;
+	}
+  
+  if(isset($_POST["account-search-interval"]) && is_numeric($_POST["account-search-interval"]) && $_POST["account-search-interval"] >= 0) {
+		$account_search_interval = $_POST["account-search-interval"];
+	} else {
+		$account_search_interval = 28800;
+	}
+  
+  if(isset($_POST["account-rest-interval"]) && is_numeric($_POST["account-rest-interval"]) && $_POST["account-rest-interval"] >= 0) {
+		$account_rest_interval = $_POST["account-rest-interval"];
+	} else {
+		$account_rest_interval = 7200;
+	}
+  
   if(isset($_POST["sp-clustering"]) && $_POST["sp-clustering"] == "on") {
 		$sp_clustering = true;
 	} else {
@@ -159,6 +177,18 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
 		$accounts_to_file = true;
 	} else {
 		$accounts_to_file = false;
+	}
+  
+  if(isset($_POST["enable-proxies"]) && $_POST["enable-proxies"] == "on") {
+		$enable_proxies = true;
+	} else {
+		$enable_proxies = false;
+	}
+  
+  if(isset($_POST["shuffle-proxies"]) && $_POST["shuffle-proxies"] == "on") {
+		$shuffle_proxies = true;
+	} else {
+		$shuffle_proxies = false;
 	}
 	
 	if(isset($_POST["log-messages"]) && $_POST["log-messages"] == "on") {
@@ -315,6 +345,9 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
   $instances = array();
   $first = true;
   
+  $total_scanners = 0;
+  $total_servers = 0;
+  
   while (($line = fgets($read_handle)) !== false) {
     if($first) {
       $first = false;
@@ -336,6 +369,12 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
       //echo "Debug: Skipped disabled instance '$instance[3] : $instance[2]'<br>";
       continue;
     }
+    
+    if(preg_match("/-os/i", $instance[1])) {
+      $total_servers++;
+    } else {
+      $total_scanners++;
+    }
 
     $instances[] = $instance;
   }
@@ -343,6 +382,49 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
   
   // close read handle
   fclose($read_handle);
+  
+  // ##########################################################################
+  // read proxies
+  $file_proxies = $_FILES["file-proxies"]["tmp_name"];
+	$filename_proxies = $_FILES["file-proxies"]["name"];
+  
+  $proxies = array();
+  
+  if($enable_proxies) {
+      
+    if($_FILES["file-proxies"]["error"] != UPLOAD_ERR_OK || $_FILES["file-proxies"]["size"] == 0) {
+      quit("Proxy list file upload error - code ".$_FILES["file-proxies"]["error"]);
+    }
+    if($_FILES["file-proxies"]["size"] > 100000) {
+      quit("File '$filename_proxies' exceeds maximum upload size.");
+    }
+   
+    $read_handle = fopen($file_proxies, "r") or quit("Unable to open file: $file_proxies");
+   
+    
+    $first = true;
+    
+    while (($line = fgets($read_handle)) !== false) {
+      if($first) {
+        $first = false;
+  
+        if(strcasecmp("ip:port", trim($line)) == 0) {
+          // skip header line
+          continue;
+        } else {
+          quit("First line of proxy list file must be: ip:port");
+        }
+      }
+      
+      // syntax: ip:port     
+      $proxies[] = trim($line);
+    }
+    
+    // close read handle
+    fclose($read_handle);
+  }
+  
+  $total_proxies = count($proxies);
   
 	// ##########################################################################
   // create script folders
@@ -406,13 +488,35 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
   $zip->addFromString($output_alarms, $content_alarms);
 	
 	// ##########################################################################
-	// scanners
-
-	// randomize the accounts used for each instance
+	// instances
+  
+  $curr_account = 0;
+  
+	// randomize the account list
   if($shuffle_accounts) {
 	  shuffle($accounts);
   }
-	$curr_account = 0;
+	
+  $curr_proxy = 0;
+  $proxies_per_instance = 0;
+
+  // randomize the proxy list
+  if($enable_proxies) {
+    
+    if($shuffle_proxies) {
+      shuffle($proxies);
+    }
+    
+    // distribute proxies
+    if($total_scanners > 0) {
+      $proxies_per_instance = floor($total_proxies / $total_scanners);
+      
+      // threshold
+      if($proxies_per_instance > 10) {
+        $proxies_per_instance = 10;
+      }
+    }
+  } 
   
   $content_servers = template_header($screen_servers);
   $content_scanners = template_header($screen_scanners);
@@ -455,7 +559,10 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
       $content_servers .= $comment."\n";
       $content_servers .= $command."\n";
       $content_servers .= $message."\n\n";
-      $content_servers .= "sleep 1\n";
+      
+      if($curr_server < $total_servers) {
+        $content_servers .= "timer 3\n";
+			}
       
       continue;
 		}
@@ -493,7 +600,7 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
       $content_dump_sp .= $command_dump."\n\n";
       $content_dump_sp .= $message."\n\n";
 			
-			if($curr_scanner < $total_instances) {
+			if($curr_scanner < $total_scanners) {
         $content_dump_sp .= "timer 5\n\n";
 			}
 			
@@ -512,13 +619,12 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
 		if(is_numeric($num_workers) && $num_workers > 0 && $num_workers < $num_accs) {
 			$command .= " -w $num_workers";
 			
-			// TODO: front-end to parameterize AccountSleepInterval / AccountRestInterval
+      
+      // account rotation
 			if($num_accs >= $num_workers*2) {
 			  // -asi: seconds for accounts to search before switching to a new account. 0 to disable.
-			  $asi = 8 * 60 * 60;
 			  // -ari: Seconds for accounts to rest when they fail or are switched out. 0 to disable.
-			  $ari = 2 * 60 * 60;
-			  $command .= " -asi $asi -ari $ari";
+			  $command .= " -asi $account_search_interval -ari $account_rest_interval";
 			}
 		}
 		
@@ -578,7 +684,18 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
         }
       }
 		}
-		
+    
+    if($enable_proxies && $proxies_per_instance > 0) {
+      
+      for($i=0; $i < $proxies_per_instance; $i++) {
+        $ip_port = $proxies[$curr_proxy];
+        
+        $command .= " -px socks5://$ip_port";
+        $curr_proxy++;
+      }
+      
+    }
+    
 		if($log_messages) {
       $command .= " -v $log_filename";
     }
@@ -590,9 +707,8 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
     $content_scanners .= $message."\n\n";
     
     if($curr_scanner < $total_instances) {
-      // TODO: front-end to adjust sleep times
       // X*#workers+1 seconds of sleep between each instance launched
-      $sleeptime = (4 * $num_workers) + 1;
+      $sleeptime = ($time_delay_worker * $num_workers) + 1;
       $content_scanners .= "timer $sleeptime\n";
     }
 		

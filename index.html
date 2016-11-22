@@ -149,6 +149,14 @@
           <p class="help-block">CSV syntax: enabled,modes,location,name,st,sd,num_workers,num_accs,webhook</p>
         </div>
       </div>
+      <div class="form-group">
+        <label for="file-proxies" class="col-sm-4 control-label">SOCKS5 Proxies</label>
+        <div class="col-sm-8">
+          <input type="hidden" name="MAX_FILE_SIZE" value="100000" />
+          <input type="file" class="form-control" id="file-proxies" name="file-proxies" accept=".csv, .txt">
+          <p class="help-block">One proxy per line - ip:port</p>
+        </div>
+      </div>
       <h4>Output Filenames</h4>
       <div class="form-group">
         <label for="output-servers" class="col-sm-4 control-label">Servers</label>
@@ -189,10 +197,28 @@
           </div>
         </div>
         <div class="form-group">
+          <label for="time-delay-worker" class="col-sm-4 control-label">Time delay per worker</label>
+          <div class="col-sm-8">
+            <input type="text" class="form-control" id="time-delay-worker" name="time-delay-worker" placeholder="4" value="4">
+          </div>
+        </div>
+        <div class="form-group">
+          <label for="account-search-interval" class="col-sm-4 control-label">Account Search Interval</label>
+          <div class="col-sm-8">
+            <input type="text" class="form-control" id="account-search-interval" name="account-search-interval" placeholder="28800" value="28800">
+          </div>
+        </div>
+        <div class="form-group">
+          <label for="account-rest-interval" class="col-sm-4 control-label">Account Rest Interval</label>
+          <div class="col-sm-8">
+            <input type="text" class="form-control" id="account-rest-interval" name="account-rest-interval" placeholder="7200" value="7200">
+          </div>
+        </div>
+        <div class="form-group">
           <div class="col-sm-offset-4 col-sm-8">
             <div class="checkbox">
               <label>
-                <input type="checkbox" id="shuffle-accounts" name="shuffle-accounts" checked> Shuffle account list before assigning them
+                <input type="checkbox" id="shuffle-accounts" name="shuffle-accounts"> Shuffle account list before assigning them
               </label>
             </div>
           </div>
@@ -211,6 +237,24 @@
             <div class="checkbox">
               <label>
                 <input type="checkbox" id="accounts-to-file" name="accounts-to-file" checked> Output accounts to a CSV file for each instance
+              </label>
+            </div>
+          </div>
+        </div>
+        <div class="form-group">
+          <div class="col-sm-offset-4 col-sm-8">
+            <div class="checkbox">
+              <label>
+                <input type="checkbox" id="enable-proxies" name="enable-proxies" checked> Assign proxies to instances
+              </label>
+            </div>
+          </div>
+        </div>
+        <div class="form-group">
+          <div class="col-sm-offset-4 col-sm-8">
+            <div class="checkbox">
+              <label>
+                <input type="checkbox" id="shuffle-proxies" name="shuffle-proxies" checked> Shuffle proxy list before assigning them
               </label>
             </div>
           </div>

@@ -1,5 +1,5 @@
-Enabled,Address,Port,Location,Name
-1,127.0.0.1,4001,,all
-1,127.0.0.1,4002,,top-pokemon
-1,127.0.0.1,4003,40.67813201 -73.9445436,area-brooklyn
-1,127.0.0.1,4004,40.78099638 -73.9724546,area-central-park
+Enabled,Name,Address,Port,Location,Config,API
+1,all,127.0.0.1,4001,,alarms-all.json,AIzaxxxxxxxxxxxxxxxxx3qbWStOIPYY
+1,top-pokemon,127.0.0.1,4002,,alarms-top-pokemon.json,AIzaxxxxxxxxxxxxxxxxx3qbWStOIPYY
+1,area-central-park,127.0.0.1,4003,40.78099638 -73.9724546,alarms-central-park.json,AIzaxxxxxxxxxxxxxxxxx3qbWStOIPYY
+1,area-brooklyn,127.0.0.1,4004,40.67813201 -73.9445436,alarms-brooklyn.json,AIzaxxxxxxxxxxxxxxxxx3qbWStOIPYY
