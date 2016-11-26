@@ -74,7 +74,7 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
 	if(isset($_POST["path-spclustering"]) && !empty($_POST["path-pogomap"])) {
 		$path_spclustering = trim($_POST["path-spclustering"]);
 	} else {
-    $path_ssclustering = "PokemonGo-Map/Tools/Spawnpoint-Clustering";
+    $path_spclustering = "PokemonGo-Map/Tools/Spawnpoint-Clustering";
   }
   
 	if(isset($_POST["path-spawnpoints"]) && !empty($_POST["path-pogomap"])) {
@@ -604,7 +604,7 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
 			$output_spawns = "$path_base/$path_spawnpoints/spawns-$curr_scanner.json";
 			$output_compressed = "$path_base/$path_spawnpoints/compressed-$curr_scanner.json";
 			
-			$command_clustering = "python $path_base/$path_ssclustering/cluster.py $output_spawns -os $output_compressed -r 70 -t 180";
+			$command_clustering = "python $path_base/$path_spclustering/cluster.py $output_spawns -os $output_compressed -r 70 -t 180";
 			  
 			$command_dump = "screen -S \"$screen_dump_sp\" -x -X screen bash -c 'timeout -sHUP 60s python $path_base/$path_pogomap/runserver.py -P 5010 -l \"$location\" -st $st -u $dump_user -p $dump_pass -ss $output_spawns --dump-spawnpoints; $command_clustering >> $log_dump'";
 			 
@@ -622,63 +622,95 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
   
 		$command = "screen -S \"$screen_scanners\" -x -X screen bash -c 'python $path_base/$path_pogomap/runserver.py $modes -sn \"$curr_scanner - $name\" -l \"$location\"";
 		
-		// disable db cleanup cycle if instance is not "only-server"
+		
+    // scanners
 		if(!preg_match("/-os/i", $modes)) {
-			$command .= " -st $st -sd $sd --disable-clean";
-		}
-		
-		// number of workers (only useful if num workers < num accs)
-		if(is_numeric($num_workers) && $num_workers > 0 && $num_workers < $num_accs) {
-			$command .= " -w $num_workers";
-			
       
-      // account rotation
-			if($num_accs >= $num_workers*2) {
-			  // -asi: seconds for accounts to search before switching to a new account. 0 to disable.
-			  // -ari: Seconds for accounts to rest when they fail or are switched out. 0 to disable.
-			  $command .= " -asi $account_search_interval -ari $account_rest_interval";
-			}
-		}
-		
-    if($num_accs != 0) {
-      // output accounts for each instance in separate file
-      if($accounts_to_file) {
-  
-        $content_accounts = "";
+      // disable db cleanup cycle if instance is not "only-server"
+			$command .= " -st $st -sd $sd --disable-clean";
+      
+      // number of workers (only useful if num workers < num accs)
+      if(is_numeric($num_workers) && $num_workers > 0 && $num_workers < $num_accs) {
+        $command .= " -w $num_workers";
         
-        // select accounts for this instance
-        for($i=0; $i<$num_accs; $i++) {
-          
-          $service = trim($accounts[$curr_account][0]);
-          $user = trim($accounts[$curr_account][1]);
-          $pass = trim($accounts[$curr_account][2]);
-          
-          $content_accounts .= "$service,$user,$pass\n";
-          $curr_account++;
-        }
         
-        // output accounts
-        $output_accounts = "$path_accounts/accounts-$curr_scanner-$clean_name.csv";
-        $zip->addFromString($output_accounts, $content_accounts);
-        
-        // pogo captcha content
-        $content_pogo_captcha .= "python pogo-captcha.py -ac $output_accounts -l \"".str_replace(" ", ",", $location)."\"\n";
-        
-        $command .= " -ac $path_base/$output_accounts";
-        
-      } else {
-        // select accounts for this instance
-        for($i=0; $i<$num_accs; $i++) {
-          
-          $user = trim($accounts[$curr_account][1]);
-          $pass = trim($accounts[$curr_account][2]);
-    
-          // append account to current command
-          $command .= " -u $user -p $pass";
-          $curr_account++;
+        // account rotation
+        if($num_accs >= $num_workers*2) {
+          // -asi: seconds for accounts to search before switching to a new account. 0 to disable.
+          // -ari: Seconds for accounts to rest when they fail or are switched out. 0 to disable.
+          $command .= " -asi $account_search_interval -ari $account_rest_interval";
         }
       }
-    }
+      
+      if($num_accs != 0) {
+        // output accounts for each instance in separate file
+        if($accounts_to_file) {
+    
+          $content_accounts = "";
+          
+          // select accounts for this instance
+          for($i=0; $i<$num_accs; $i++) {
+            
+            $service = trim($accounts[$curr_account][0]);
+            $user = trim($accounts[$curr_account][1]);
+            $pass = trim($accounts[$curr_account][2]);
+            
+            $content_accounts .= "$service,$user,$pass\n";
+            $curr_account++;
+          }
+          
+          // output accounts
+          $output_accounts = "$path_accounts/accounts-$curr_scanner-$clean_name.csv";
+          $zip->addFromString($output_accounts, $content_accounts);
+          
+          // pogo captcha content
+          $content_pogo_captcha .= "python pogo-captcha.py -ac $output_accounts -l \"".str_replace(" ", ",", $location)."\"\n";
+          
+          $command .= " -ac $path_base/$output_accounts";
+          
+        } else {
+          // select accounts for this instance
+          for($i=0; $i<$num_accs; $i++) {
+            
+            $user = trim($accounts[$curr_account][1]);
+            $pass = trim($accounts[$curr_account][2]);
+      
+            // append account to current command
+            $command .= " -u $user -p $pass";
+            $curr_account++;
+          }
+        }
+      }
+      
+      if($enable_proxies && $proxies_per_instance > 0) {
+        $command .= " -me 10 -pxt 1 -pxr 3600 -pxo round";
+        
+        if($proxies_to_file) {
+          $content_proxies = "";
+          
+          for($i=0; $i < $proxies_per_instance; $i++) {
+            $ip_port = $proxies[$curr_proxy];
+            
+            $content_proxies .= "socks5://$ip_port\n";
+            $curr_proxy++;
+          }
+          
+          $output_proxies = "$path_proxies/proxies-$curr_scanner-$clean_name.txt";
+          $zip->addFromString($output_proxies, $content_proxies);
+          
+          $command .= " -pxf $path_base/$output_proxies";
+          
+        } else {
+          for($i=0; $i < $proxies_per_instance; $i++) {
+            $ip_port = $proxies[$curr_proxy];
+            
+            $command .= "-px socks5://$ip_port";
+            $curr_proxy++;
+          }
+        }
+      }
+		}
+		
     
 		if(isset($webhook) && !empty($webhook)) {
       $webhooks = explode(" ", $webhook);
@@ -696,34 +728,7 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
         }
       }
 		}
-    
-    if($enable_proxies && $proxies_per_instance > 0) {
-      $command .= " -me 10 -pxt 1 -pxr 3600 -pxo round";
       
-      if($proxies_to_file) {
-        $content_proxies = "";
-        
-        for($i=0; $i < $proxies_per_instance; $i++) {
-          $ip_port = $proxies[$curr_proxy];
-          
-          $content_proxies .= "socks5://$ip_port\n";
-          $curr_proxy++;
-        }
-        
-        $output_proxies = "$path_proxies/proxies-$curr_scanner-$clean_name.txt";
-        $zip->addFromString($output_proxies, $content_proxies);
-        
-        $command .= " -pxf $path_base/$output_proxies";
-        
-      } else {
-        for($i=0; $i < $proxies_per_instance; $i++) {
-          $ip_port = $proxies[$curr_proxy];
-          
-          $command .= "-px socks5://$ip_port";
-          $curr_proxy++;
-        }
-      }
-    }
     
 		if($log_messages) {
       $command .= " -v $log_filename";
@@ -735,7 +740,7 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
     $content_scanners .= $command."\n";
     $content_scanners .= $message."\n\n";
     
-    if($curr_scanner < $total_instances) {
+    if($curr_scanner < $total_scanners) {
       // X*#workers+1 seconds of sleep between each instance launched
       $sleeptime = ($time_delay_worker * $num_workers) + 1;
       $content_scanners .= "timer $sleeptime\n";
