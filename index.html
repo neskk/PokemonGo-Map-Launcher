@@ -15,7 +15,7 @@
   <script src="http://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></script>
   <!--
   <script src="jquery.csv.min.js"></script>
-  
+
   <link type="text/css" rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/jsgrid/1.5.2/jsgrid.min.css" />
   <link type="text/css" rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/jsgrid/1.5.2/jsgrid-theme.min.css" />
   <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/jsgrid/1.5.2/jsgrid.min.js"></script>
@@ -127,8 +127,27 @@
           <input type="text" class="form-control" id="mysql-password" name="mysql-password" placeholder="p455w0rd" value="p455w0rd">
         </div>
       </div>
-      
+      <h4>Account Rotation Settings</h4>
+      <div class="form-group">
+        <label for="workforce-ratio" class="col-sm-4 control-label">Workforce Ratio to trigger ASI</label>
+        <div class="col-sm-8">
+          <input type="text" class="form-control" id="workforce-ratio" name="workforce-ratio" placeholder="2" value="2">
+        </div>
+      </div>
+      <div class="form-group">
+        <label for="account-search-interval" class="col-sm-4 control-label">Account Search Interval</label>
+        <div class="col-sm-8">
+          <input type="text" class="form-control" id="account-search-interval" name="account-search-interval" placeholder="28800" value="28800">
+        </div>
+      </div>
+      <div class="form-group">
+        <label for="account-rest-interval" class="col-sm-4 control-label">Account Rest Interval</label>
+        <div class="col-sm-8">
+          <input type="text" class="form-control" id="account-rest-interval" name="account-rest-interval" placeholder="7200" value="7200">
+        </div>
+      </div>
     </div>
+
     <div class="col-xs-12 col-md-6">
       <h4>CSV File Imports</h4>
       <div class="form-group">
@@ -194,7 +213,6 @@
           <input type="text" class="form-control" id="output-pogo-captcha" name="output-pogo-captcha" placeholder="pogo-captcha.txt" value="pogo-captcha.txt">
         </div>
       </div>
-      
       <h4>Configuration</h4>
         <div class="form-group">
           <label for="max-instances" class="col-sm-4 control-label">Instance Limit</label>
@@ -209,22 +227,10 @@
           </div>
         </div>
         <div class="form-group">
-          <label for="account-search-interval" class="col-sm-4 control-label">Account Search Interval</label>
-          <div class="col-sm-8">
-            <input type="text" class="form-control" id="account-search-interval" name="account-search-interval" placeholder="28800" value="28800">
-          </div>
-        </div>
-        <div class="form-group">
-          <label for="account-rest-interval" class="col-sm-4 control-label">Account Rest Interval</label>
-          <div class="col-sm-8">
-            <input type="text" class="form-control" id="account-rest-interval" name="account-rest-interval" placeholder="7200" value="7200">
-          </div>
-        </div>
-        <div class="form-group">
           <div class="col-sm-offset-4 col-sm-8">
             <div class="checkbox">
               <label>
-                <input type="checkbox" id="shuffle-accounts" name="shuffle-accounts"> Shuffle account list before assigning them
+                <input type="checkbox" id="shuffle-accounts" name="shuffle-accounts" checked> Shuffle account list before assigning them
               </label>
             </div>
           </div>
@@ -242,7 +248,7 @@
           <div class="col-sm-offset-4 col-sm-8">
             <div class="checkbox">
               <label>
-                <input type="checkbox" id="sp-clustering" name="sp-clustering" checked> Use Spawnpoint Clustering
+                <input type="checkbox" id="sp-clustering" name="sp-clustering"> Use Spawnpoint Clustering
               </label>
             </div>
           </div>
@@ -251,7 +257,7 @@
           <div class="col-sm-offset-4 col-sm-8">
             <div class="checkbox">
               <label>
-                <input type="checkbox" id="enable-proxies" name="enable-proxies" checked> Assign proxies to instances
+                <input type="checkbox" id="enable-proxies" name="enable-proxies"> Assign proxies to instances
               </label>
             </div>
           </div>
@@ -303,24 +309,24 @@
 <script>
 $(function() {
   $('#download-launcher').hide();
-  
-  $('#download-launcher').click(function(e) { 
+
+  $('#download-launcher').click(function(e) {
     window.open($(this).attr("href"));
     $(this).hide();
   });
-  
+
 });
 
 $("#form-config").submit(function(e) {
-  
+
   $('#download-launcher').hide();
   $('#result-message').empty();
-	
+
 	var formData = new FormData($(this)[0]);
 
 	//prevent Default functionality
 	e.preventDefault();
-	
+
 	//get the action-url of the form
 	var url = e.currentTarget.action;
 
@@ -333,14 +339,14 @@ $("#form-config").submit(function(e) {
 			success: function(data) {
         var message = data['message'].replace(/(?:\r\n|\r|\n)/g, '<br />');
         var file_id = data['file'];
-        
+
         if(file_id != '') {
           //$('#generate-launcher').hide();
           var fileUrl = "download.php?id="+file_id;
-          
+
           $('#download-launcher').attr("href", fileUrl);
           $('#download-launcher').show();
-          
+
         } else {
 				  $('#result-message').html(message);
         }
@@ -356,17 +362,17 @@ $("#form-config").submit(function(e) {
 <script>
   // http://stackoverflow.com/questions/34494032/loading-a-csv-file-into-an-html-table-using-javascript
   // http://www.uselesscode.org/javascript/csv/demo/example-importing-exporting-csv.htm
-  
+
   // https://mindmup.github.io/editable-table/
   /*
   $(document).ready(function() {
-    
+
     // Bind to <input files>
     if(isAPIAvailable()) {
       $('#files').bind('change', handleFileSelect);
     }
   });
-  
+
   // TODO: provide error message
   function isAPIAvailable() {
     // Check for the various File API support.
@@ -390,7 +396,7 @@ $("#form-config").submit(function(e) {
       return false;
     }
   }
-  
+
   function handleFileSelect(evt) {
     var files = evt.target.files; // FileList object
     var file = files[0];
@@ -405,7 +411,7 @@ $("#form-config").submit(function(e) {
     // post the results
     $('#list').append(output);
   }
-  
+
   function printTable(file) {
     var reader = new FileReader();
     reader.readAsText(file);
@@ -432,7 +438,7 @@ $("#form-config").submit(function(e) {
     rxIsFloat = /^\d*\.\d+$|^\d+\.\d*$/,
     rxQuotedNumber = /^"\d+"$|"\.\d+"$|^"\d+\.\d*"$/,
     rows = $('#grid tr');
-  
+
     // Walk the rows of the table and convert them into an array
     rows.each( function() {
       var row = [];
@@ -440,7 +446,7 @@ $("#form-config").submit(function(e) {
       tds.each( function () {
         var itm = $(this).text();
         // Since everything in the table was conveted to text when inserted
-        // we have to convert it back to a number here before we pass it to 
+        // we have to convert it back to a number here before we pass it to
         // arrayToCsv so it handles them correctly.
         if(rxIsInt.test(itm)) {
           itm = parseInt(itm, 10);
@@ -458,15 +464,15 @@ $("#form-config").submit(function(e) {
       });
       arr.push(row);
     });
-    
+
     // Convert the array to csv
     csv = $.csv.fromArrays(arr);
-    
-    
+
+
     // display the generated csv in the textbox
     //$('#inout').val(csv);
   }
-  
+
   function addRow() {
     var i,
         tdCount = $('#grid tr:last>td').length,
@@ -477,7 +483,7 @@ $("#form-config").submit(function(e) {
         row += '</tr>';
     $('#grid tr:last').after(row);
   }
-  
+
   // TODO: export file (save)
   */
 </script>
