@@ -5,39 +5,7 @@ MPASS="%2$s"
 MDB="%3$s"
 MHOST="%4$s"
 
-FILENAME="`date +"%%Y-%%m-%%d"`-$MDB.bak"
-
-PROCEED=true
-
-if [ -f "$FILENAME.tar.gz" ]
-then
-	echo "A previous backup '$FILENAME.tar.gz' was found."
-	echo "If you continue this file will be overwritten."
-	read -r -p "Are you sure you want to DELETE $FILENAME.tar.gz? [y/N] " response
-  case $response in
-      [yY][eE][sS]|[yY]) 
-          PROCEED=true
-          ;;
-      *)
-          PROCEED=false
-          ;;
-  esac
-fi
-
-if [ $PROCEED == false ]
-then
-  exit 0
-fi
-
-# dump current database
-echo "Dumping tables from $MDB database..."
-mysqldump $MDB > $FILENAME.sql
-
-echo "Compressing $MDB database..."
-tar -zcvf $FILENAME.tar.gz $FILENAME.sql --remove-files
-
-
-# Database cleanup phase
+# Database cleanup
 echo "If you continue, all tables from $MDB database will be dropped."
 read -r -p "Are you sure you want to DELETE $MDB? [y/N] " response
 case $response in

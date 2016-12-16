@@ -1,0 +1,13 @@
+#!/bin/bash
+
+if screen -list | grep -q "%1$s"; then
+  screen -X -S "%1$s" quit
+  echo Screen session "%1$s" terminated.
+  sleep 1
+fi
+
+screen -S "%1$s" -m -d
+sleep 1
+# %2$s
+screen -S "%1$s" -x -X screen bash -c '%3$s; exec bash'
+echo \# %2$s
