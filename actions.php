@@ -4,7 +4,6 @@
 $PATH_TEMPLATES = "templates";
 $PATH_TMP = "tmp";
 
-$MYSQL_RESET_SCRIPT_NAME = "reset-database.sh";
 $MYSQL_DROP_SCRIPT_NAME = "drop-database.sh";
 $MYSQL_DUMP_SCRIPT_NAME = "backup-database.sh";
 
@@ -310,7 +309,7 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
     $banned = trim($account[3]);
 
     if(!empty($banned) && $banned > 0) {
-      //echo "Debug: Skipped banned account '$account[1] : $account[2]'<br>";
+      $response["message"] .= "Skipped banned account '$account[1] : $account[2]'\n";
       continue;
     }
 
@@ -359,7 +358,7 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
     $name = trim($alarm[1]);
 
     if($enabled != "1") {
-      //echo "Debug: Skipped disabled alarm '$alarm[4] : $alarm[3]'<br>";
+      $response["message"] .= "Skipped disabled alarm '$alarm[4] : $alarm[3]'\n";
       continue;
     }
 
@@ -408,7 +407,7 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
     $enabled = trim($instance[0]);
 
     if($enabled != "1") {
-      //echo "Debug: Skipped disabled instance '$instance[3] : $instance[2]'<br>";
+      $response["message"] .= "Skipped disabled instance '$instance[3] : $instance[2]'\n";
       continue;
     }
 
