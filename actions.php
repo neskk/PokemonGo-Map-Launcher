@@ -751,8 +751,6 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
     if(isset($webhook) && !empty($webhook)) {
       $webhooks = explode(" ", $webhook);
 
-      $command .= " -wh";
-
       foreach($webhooks as $webhook) {
         $webhook = trim($webhook);
 
@@ -760,7 +758,7 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
           $alarm_wh_address = $alarms[$webhook][2];
           $alarm_wh_port = $alarms[$webhook][3];
 
-          $command .= " http://$alarm_wh_address:$alarm_wh_port";
+          $command .= " -wh http://$alarm_wh_address:$alarm_wh_port";
         }
       }
     }
