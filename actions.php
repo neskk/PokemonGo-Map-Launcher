@@ -241,7 +241,7 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
   if(isset($_POST["log-filename"]) && !empty($_POST["log-filename"])) {
     $log_filename = trim($_POST["log-filename"]);
   } else {
-    $log_filename = "pokemongo-map.log";
+    $log_filename = "debug.log";
   }
 
   if(isset($_POST["output-servers"]) && !empty($_POST["output-servers"])) {
@@ -593,11 +593,11 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
       $curr_server++;
 
       $message = "Server $curr_server - $name - $modes";
-      $run_server = "python $path_base/$path_pogomap/runserver.py $modes -sn \"0$curr_server - $name\" -l \"$location\"";
+      $run_server = "python $path_base/$path_pogomap/runserver.py $modes -sn \"0$curr_server - $name\" -l \"$location\" -v $path_base/$log_filename";
       $command = "screen -S \"$screen_servers\" -x -X screen bash -c '$run_server";
 
       if($log_messages) {
-        $command .= " -v $log_filename";
+        $command .= " -v $path_base/$log_filename";
       }
 
       $command .= "; exec bash'";
@@ -763,11 +763,11 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
       }
     }
 
-
+    /*
     if($log_messages) {
-      $command .= " -v $log_filename";
+      $command .= " -v $path_base/$log_filename";
     }
-
+    */
     $command .= "; exec bash'";
 
     $content_scanners .= $comment."\n";
