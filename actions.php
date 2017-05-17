@@ -1,6 +1,7 @@
 <?php
 //header('Content-Type: text/plain');
 
+$PATH_SCRIPTS = "scripts";
 $PATH_TEMPLATES = "templates";
 $PATH_TMP = "tmp";
 
@@ -8,6 +9,7 @@ $MYSQL_DROP_SCRIPT_NAME = "drop-database.sh";
 $MYSQL_DUMP_SCRIPT_NAME = "backup-database.sh";
 
 $log_dump = "dump-spawnpoints.log";
+$access_logs = "pogomap-access.log";
 
 function rrmdir($dir) {
    if (is_dir($dir)) {
@@ -491,6 +493,9 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
   $zip->addEmptyDir($path_accounts);
   $zip->addEmptyDir($path_accounts."-hlvl");
   */
+  $zip->addFile("$PATH_SCRIPTS/shuffle.py", "$path_accounts/shuffle.py");
+  $zip->addFile("$PATH_SCRIPTS/shuffle.py", "$path_accounts-hlvl/shuffle.py");
+
   // ##########################################################################
   // alarms
 
@@ -604,14 +609,14 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
       $curr_server++;
 
       $message = "Server $curr_server - $name - $modes";
-      $run_server = "python $path_base/$path_pogomap/runserver.py $modes -sn \"0$curr_server - $name\" -l \"$location\" -v $path_base/$log_filename";
-      $command = "screen -S \"$screen_servers\" -x -X screen bash -c '$run_server";
+      $run_server = "python $path_base/$path_pogomap/runserver.py $modes -sn \"0$curr_server - $name\" -l \"$location\"";
 
       if($log_messages) {
-        $command .= " -v $path_base/$log_filename";
+        $run_server .= " -v $path_base/$log_filename";
       }
+      $run_server .= " -al";
 
-      $command .= "; exec bash'";
+      $command = "screen -S \"$screen_servers\" -x -X screen bash -c '$run_server; exec bash'";
 
       $content_servers .= "# $message"."\n";
       $content_servers .= $command."\n";
@@ -828,7 +833,7 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
   $content_dump_sp .= "timer 60\n";
   $content_dump_sp .= "screen -X -S \"$screen_dump_sp\" quit\n";
 
-  // output servers script
+  // output servers shutdown script
   if($curr_server > 0) {
     $zip->addFromString($output_servers, $content_servers);
 
@@ -837,7 +842,7 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
     $zip->addFromString("shutdown-servers.sh", $shutdown_servers);
   }
 
-  // output scanners script
+  // output scanners shutdown script
   if($curr_scanner > 0) {
     $zip->addFromString($output_scanners, $content_scanners);
 
@@ -848,6 +853,8 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
 
     $shutdown_scanners = "screen -X -S \"$screen_scanners\" quit\n";
     $shutdown_scanners .= "echo Screen session \"$screen_scanners\" terminated.\n";
+    $shutdown_scanners .= "python $path_base/$path_accounts/shuffle.py\n";
+    $shutdown_scanners .= "python $path_base/$path_accounts-hlvl/shuffle.py\n";
     $zip->addFromString("shutdown-scanners.sh", $shutdown_scanners);
   }
 
