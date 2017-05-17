@@ -289,34 +289,41 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
   $read_handle = fopen($file_accounts, "r") or quit("Unable to open file: $file_accounts");
 
   $accounts = array();
+  $accounts_hlvl = array();
   $first = true;
 
   while (($line = fgets($read_handle)) !== false) {
     if($first) {
       $first = false;
 
-      if(strcasecmp("service,username,password,banned", trim($line)) == 0) {
+      if(strcasecmp("service,username,password,level,banned", trim($line)) == 0) {
         // skip header line
         continue;
       } else {
-        quit("First line of accounts CSV file must be column headings: service,username,password,banned");
+        quit("First line of accounts CSV file must be column headings: service,username,password,level,banned");
       }
     }
 
-    // syntax: service,username,password,banned
+    // syntax: service,username,password,level,banned
     $account = explode(",", $line);
 
-    $banned = trim($account[3]);
+    $level = trim($account[3]);
+    $banned = trim($account[4]);
 
     if(!empty($banned) && $banned > 0) {
       $response["message"] .= "Skipped banned account '$account[1] : $account[2]'\n";
       continue;
     }
 
-    $accounts[] = $account;
+    if($level >= 30) {
+      $accounts_hlvl[] = $account;
+    } else {
+      $accounts[] = $account;
+    }
   }
 
   $total_accounts = count($accounts);
+  $total_accounts_hlvl = count($accounts_hlvl);
 
   // close read handle
   fclose($read_handle);
@@ -393,15 +400,15 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
     if($first) {
       $first = false;
 
-      if(strcasecmp("enabled,modes,location,name,st,sd,workers,accounts,webhook", trim($line)) == 0) {
+      if(strcasecmp("enabled,modes,location,name,st,sd,workers,accounts,hlvl,webhook", trim($line)) == 0) {
         // skip header line
         continue;
       } else {
-        quit("First line of instances CSV file must be column headings: enabled,modes,location,name,st,sd,workers,accounts,webhook");
+        quit("First line of instances CSV file must be column headings: enabled,modes,location,name,st,sd,workers,accounts,hlvl,webhook");
       }
     }
 
-    // syntax: enabled,modes,location,name,st,sd,workers,accounts,webhook
+    // syntax: enabled,modes,location,name,st,sd,workers,accounts,hlvl,webhook
     $instance = explode(",", $line);
 
     $enabled = trim($instance[0]);
@@ -479,10 +486,11 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
   if ($zip->open($output_filename, ZipArchive::CREATE) !== TRUE) {
       quit("Unable to create output zip archive: $output_filename\n");
   }
-
+  /*
   $zip->addEmptyDir($path_spawnpoints);
   $zip->addEmptyDir($path_accounts);
-
+  $zip->addEmptyDir($path_accounts."-hlvl");
+  */
   // ##########################################################################
   // alarms
 
@@ -532,10 +540,12 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
   // instances
 
   $curr_account = 0;
+  $curr_account_hlvl = 0;
 
   // randomize the account list
   if($shuffle_accounts) {
     shuffle($accounts);
+    shuffle($accounts_hlvl);
   }
 
   $curr_proxy = 0;
@@ -578,7 +588,8 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
     $sd = trim($instance[5]);
     $num_workers = trim($instance[6]);
     $num_accs = trim($instance[7]);
-    $webhook = trim($instance[8]);
+    $num_accs_hlvl = trim($instance[8]);
+    $webhook = trim($instance[9]);
 
     // sanitize names
     $clean_name = str_replace(" ", "_", strtolower($name));
@@ -620,8 +631,13 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
     // increment scanner number so it matches screen's window number
     $curr_scanner++;
 
-    if($curr_account+$num_accs > $total_accounts) {
+    if($curr_account + $num_accs > $total_accounts) {
       $response["message"] .= "Insufficient accounts, script stopped at instance #$curr_scanner: $name\n";
+      break;
+    }
+
+    if($curr_account_hlvl + $num_accs_hlvl > $total_accounts_hlvl) {
+      $response["message"] .= "Insufficient high-level accounts, script stopped at instance #$curr_scanner: $name\n";
       break;
     }
 
@@ -680,7 +696,27 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
       }
 
       if($num_accs != 0) {
-        // output accounts for each instance in separate file
+
+        // output high-level accounts for each instance in separate files
+        $content_accounts_hlvl = "";
+
+        // select accounts for this instance
+        for($i=0; $i<$num_accs_hlvl; $i++) {
+
+          $service = trim($accounts_hlvl[$curr_account_hlvl][0]);
+          $user = trim($accounts_hlvl[$curr_account_hlvl][1]);
+          $pass = trim($accounts_hlvl[$curr_account_hlvl][2]);
+
+          $content_accounts_hlvl .= "$service,$user,$pass\n";
+          $curr_account_hlvl++;
+        }
+        // output high-level accounts
+        $output_accounts_hlvl = "$path_accounts-hlvl/accounts-hlvl-$curr_scanner-$clean_name.csv";
+        $zip->addFromString($output_accounts_hlvl, $content_accounts_hlvl);
+
+        $command .= " -hlvl $path_base/$output_accounts_hlvl";
+
+        // output accounts for each instance in separate files
         if($accounts_to_file) {
 
           $content_accounts = "";
