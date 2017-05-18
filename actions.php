@@ -504,6 +504,7 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
   $zip->addEmptyDir($path_accounts);
   $zip->addEmptyDir($path_accounts."-hlvl");
   */
+  $zip->addFile("$PATH_SCRIPTS/update.sh", "update.sh");
   $zip->addFile("$PATH_SCRIPTS/shuffle.py", "$path_accounts/shuffle.py");
   $zip->addFile("$PATH_SCRIPTS/shuffle.py", "$path_accounts-hlvl/shuffle.py");
 
