@@ -15,7 +15,7 @@ then
 	echo "If you continue this file will be overwritten."
 	read -r -p "Are you sure you want to DELETE $FILENAME.tar.gz? [y/N] " response
   case $response in
-      [yY][eE][sS]|[yY]) 
+      [yY][eE][sS]|[yY])
           PROCEED=true
           ;;
       *)

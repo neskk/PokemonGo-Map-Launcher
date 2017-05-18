@@ -35,6 +35,17 @@ function template_header($screen_session, $message) {
   return sprintf($format, $screen_session, $message);
 }
 
+function template_header_server($message) {
+  global $PATH_TEMPLATES;
+
+  $filename = "$PATH_TEMPLATES/header_server.txt";
+  $read_handle = fopen($filename, "r");
+  $format = fread($read_handle, filesize($filename));
+  fclose($read_handle);
+
+  return sprintf($format, $message);
+}
+
 function template_mysql_dump($user, $pass, $db, $host) {
   global $PATH_TEMPLATES;
 
@@ -574,9 +585,10 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
     }
   }
 
-  $content_servers = template_header($screen_servers, "Launching PokemonGo-Map Server instances...");
+  $content_servers = template_header_server("Launching PokemonGo-Map Server instances...");
   $content_scanners = template_header($screen_scanners, "Launching PokemonGo-Map Scanner instances...");
   $content_dump_sp = template_header($screen_dump_sp, "Dumping PokemonGo-Map spawnpoints...");
+  $content_shutdown_servers = "";
   $content_pogo_captcha = "";
 
   $curr_server = 0;
@@ -616,19 +628,24 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
       }
       $run_server .= " -al";
 
-      $command = "screen -S \"$screen_servers\" -x -X screen bash -c '$run_server; exec bash'";
+      // create restart script
+      $script_content = template_restart_server("server$curr_server", $message, $run_server);
+      $zip->addFromString("restart-server$curr_server.sh", $script_content);
 
-      $content_servers .= "# $message"."\n";
+      $command = "./restart-server$curr_server.sh";
+      //$command = "screen -S \"$screen_servers\" -x -X screen bash -c '$run_server; exec bash'";
+
+      //$content_servers .= "# $message"."\n";
       $content_servers .= $command."\n";
-      $content_servers .= "echo \# $message"."\n\n";
+      //$content_servers .= "echo \# $message"."\n\n";
 
       if($curr_server < $total_servers) {
         $content_servers .= "timer 3\n";
       }
 
-      // include restart script
-      $script_content = template_restart_server("server$curr_server", $message, $run_server);
-      $zip->addFromString("restart-server$curr_server.sh", $script_content);
+      $content_shutdown_servers .= "screen -X -S \"server$curr_server\" quit\n";
+      $content_shutdown_servers .= "echo Screen session \"server$curr_server\" terminated.\n";
+      $content_shutdown_servers .= "sleep 1\n";
 
       continue;
     }
@@ -833,16 +850,18 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
   $content_dump_sp .= "timer 60\n";
   $content_dump_sp .= "screen -X -S \"$screen_dump_sp\" quit\n";
 
-  // output servers shutdown script
+  // output server scripts
   if($curr_server > 0) {
     $zip->addFromString($output_servers, $content_servers);
-
+    /*
     $shutdown_servers = "screen -X -S \"$screen_servers\" quit\n";
     $shutdown_servers .= "echo Screen session \"$screen_servers\" terminated.\n";
     $zip->addFromString("shutdown-servers.sh", $shutdown_servers);
+    */
+    $zip->addFromString("shutdown-servers.sh", $content_shutdown_servers);
   }
 
-  // output scanners shutdown script
+  // output scanner scripts
   if($curr_scanner > 0) {
     $zip->addFromString($output_scanners, $content_scanners);
 
