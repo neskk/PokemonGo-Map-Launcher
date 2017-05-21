@@ -79,6 +79,17 @@ function template_restart_server($screen_session, $message, $command) {
   return sprintf($format, $screen_session, $message, $command);
 }
 
+function template_update_script($path_pogomap) {
+  global $PATH_TEMPLATES;
+
+  $filename = "$PATH_TEMPLATES/update.txt";
+  $read_handle = fopen($filename, "r");
+  $format = fread($read_handle, filesize($filename));
+  fclose($read_handle);
+
+  return sprintf($format, $path_pogomap);
+}
+
 $response = [ "message" => "", "file" => ""];
 
 function quit($message) {
@@ -504,7 +515,8 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
   $zip->addEmptyDir($path_accounts);
   $zip->addEmptyDir($path_accounts."-hlvl");
   */
-  $zip->addFile("$PATH_SCRIPTS/update.sh", "update.sh");
+  $update_script = template_update_script($path_pogomap);
+  $zip->addFromString("update.sh", $update_script);
   $zip->addFile("$PATH_SCRIPTS/shuffle.py", "$path_accounts/shuffle.py");
   $zip->addFile("$PATH_SCRIPTS/shuffle.py", "$path_accounts-hlvl/shuffle.py");
 

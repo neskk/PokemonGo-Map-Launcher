@@ -1,7 +1,7 @@
 #!/bin/bash
 ./shutdown-scanners.sh
 ./shutdown-servers.sh
-cd PokemonGo-Map/
+cd %1$s/
 git pull
 pip install appdirs pyparsing --upgrade
 pip install -r requirements.txt --upgrade
