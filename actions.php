@@ -639,7 +639,7 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
       if($log_messages) {
         $run_server .= " -v $path_base/$log_filename";
       }
-      $run_server .= " -al";
+      #$run_server .= " -al";
 
       // create restart script
       $script_content = template_restart_server("server$curr_server", $message, $run_server);
@@ -718,6 +718,10 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
       // disable db cleanup cycle if instance is not "only-server"
       // -ari: Seconds for accounts to rest when they fail or are switched out. 0 to disable.
       $command .= " -st $st -sd $sd -ari $account_rest_interval --disable-clean";
+
+      if($curr_scanner == 1 && $log_messages) {
+        //$command .= " -v $path_base/scanner-$log_filename";
+      }
 
       // number of workers (only useful if num workers < num accs)
       if(is_numeric($num_workers) && $num_workers > 0 && $num_workers < $num_accs) {
