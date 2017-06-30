@@ -100,12 +100,6 @@ function quit($message) {
 
 if($_SERVER['REQUEST_METHOD'] == 'POST') {
 
-  if(isset($_POST["path-base"]) && !empty($_POST["path-base"])) {
-    $path_base = trim($_POST["path-base"]);
-  } else {
-    $path_base = "~";
-  }
-
   if(isset($_POST["path-pogomap"]) && !empty($_POST["path-pogomap"])) {
     $path_pogomap = trim($_POST["path-pogomap"]);
   } else {
@@ -208,12 +202,6 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
     $account_rest_interval = 7200;
   }
 
-  if(isset($_POST["max-instances"]) && is_numeric($_POST["max-instances"]) && $_POST["max-instances"] > 1) {
-    $max_instances = $_POST["max-instances"];
-  } else {
-    $max_instances = 1000000;
-  }
-
   if(isset($_POST["time-delay-worker"]) && is_numeric($_POST["time-delay-worker"]) && $_POST["time-delay-worker"] > 0) {
     $time_delay_worker = $_POST["time-delay-worker"];
   } else {
@@ -299,6 +287,45 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
   }
 
   // ##########################################################################
+  // read servers
+  $file_servers = $_FILES["file-servers"]["tmp_name"];
+  $filename_servers = $_FILES["file-servers"]["name"];
+
+  if($_FILES["file-servers"]["error"] != UPLOAD_ERR_OK || $_FILES["file-servers"]["size"] == 0) {
+    quit("Servers file upload error - code ".$_FILES["file-servers"]["error"]);
+  }
+  if($_FILES["file-servers"]["size"] > 100000) {
+    quit("File '$filename_servers' exceeds maximum upload size.");
+  }
+
+  $read_handle = fopen($file_servers, "r") or quit("Unable to open file: $file_servers");
+
+  $servers = array();
+  $first = true;
+
+  while (($line = fgets($read_handle)) !== false) {
+    if($first) {
+      $first = false;
+
+      if(strcasecmp("server,ip,path,database,alarms,kmail", trim($line)) == 0) {
+        // skip header line
+        continue;
+      } else {
+        quit("First line of servers CSV file must be column headings: server,ip,path,database,alarms,kmail");
+      }
+    }
+
+    // syntax: server,ip,path,database,kmail
+    $server = explode(",", $line);
+    $name = trim($server[0]);
+
+    $servers[$name] = $server;
+  }
+
+  // close read handle
+  fclose($read_handle);
+
+  // ##########################################################################
   // read accounts
   $file_accounts = $_FILES["file-accounts"]["tmp_name"];
   $filename_accounts = $_FILES["file-accounts"]["name"];
@@ -306,7 +333,7 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
   if($_FILES["file-accounts"]["error"] != UPLOAD_ERR_OK || $_FILES["file-accounts"]["size"] == 0) {
     quit("Accounts file upload error - code ".$_FILES["file-accounts"]["error"]);
   }
-  if($_FILES["file-accounts"]["size"] > 100000) {
+  if($_FILES["file-accounts"]["size"] > 500000) {
     quit("File '$filename_accounts' exceeds maximum upload size.");
   }
 
@@ -417,35 +444,46 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
   $instances = array();
   $first = true;
 
-  $total_scanners = 0;
-  $total_servers = 0;
+  $total_servers = array();
+  $total_scanners = array();
+  $cum_servers = 0;
+  $cum_scanners = 0;
+
+  foreach ($servers as $server) {
+    $name = trim($server[0]);
+    $total_servers[$name] = 0;
+    $total_scanners[$name] = 0;
+  }
 
   while (($line = fgets($read_handle)) !== false) {
     if($first) {
       $first = false;
 
-      if(strcasecmp("enabled,modes,location,name,st,sd,workers,accounts,hlvl,webhook", trim($line)) == 0) {
+      if(strcasecmp("enabled,server,webhook,modes,location,name,st,sd,workers,accounts,hlvl", trim($line)) == 0) {
         // skip header line
         continue;
       } else {
-        quit("First line of instances CSV file must be column headings: enabled,modes,location,name,st,sd,workers,accounts,hlvl,webhook");
+        quit("First line of instances CSV file must be column headings: enabled,server,webhook,modes,location,name,st,sd,workers,accounts,hlvl");
       }
     }
 
-    // syntax: enabled,modes,location,name,st,sd,workers,accounts,hlvl,webhook
+    // syntax: enabled,server,webhook,modes,location,name,st,sd,workers,accounts,hlvl
     $instance = explode(",", $line);
 
     $enabled = trim($instance[0]);
+    $server = trim($instance[1]);
 
     if($enabled != "1") {
-      $response["message"] .= "Skipped disabled instance '$instance[3] : $instance[2]'\n";
+      $response["message"] .= "Skipped disabled instance '$instance[5] : $instance[4]'\n";
       continue;
     }
 
-    if(preg_match("/-os/i", $instance[1])) {
-      $total_servers++;
+    if(preg_match("/-os/i", $instance[3])) {
+      $total_servers[$server]++;
+      $cum_servers++;
     } else {
-      $total_scanners++;
+      $total_scanners[$server]++;
+      $cum_scanners++;
     }
 
     $instances[] = $instance;
@@ -508,62 +546,82 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
   $output_filename = "$PATH_TMP/$tmp_id.zip";
 
   if ($zip->open($output_filename, ZipArchive::CREATE) !== TRUE) {
-      quit("Unable to create output zip archive: $output_filename\n");
+    quit("Unable to create output zip archive: $output_filename\n");
   }
-  /*
-  $zip->addEmptyDir($path_spawnpoints);
-  $zip->addEmptyDir($path_accounts);
-  $zip->addEmptyDir($path_accounts."-hlvl");
-  */
-  $update_script = template_update_script($path_pogomap);
-  $zip->addFromString("update.sh", $update_script);
-  $zip->addFile("$PATH_SCRIPTS/shuffle.py", "$path_accounts/shuffle.py");
-  $zip->addFile("$PATH_SCRIPTS/shuffle.py", "$path_accounts-hlvl/shuffle.py");
+
+  foreach($servers as $server) {
+    $name = trim($server[0]);
+    $ip = trim($server[1]);
+    $path = trim($server[2]);
+    $database = trim($server[3]);
+    $alarms = trim($server[4]);
+    $kmail = trim($server[5]);
+
+    $zip->addEmptyDir($name);
+    /*
+    $zip->addEmptyDir("$name/$path_spawnpoints");
+    $zip->addEmptyDir("$name/$path_accounts");
+    $zip->addEmptyDir("$name/$path_accounts-hlvl");
+    */
+    $update_script = template_update_script($path_pogomap);
+    $zip->addFromString("$name/update.sh", $update_script);
+    $zip->addFile("$PATH_SCRIPTS/shuffle.py", "$name/$path_accounts/shuffle.py");
+    $zip->addFile("$PATH_SCRIPTS/shuffle.py", "$name/$path_accounts-hlvl/shuffle.py");
+    $zip->addFile("$PATH_SCRIPTS/remove_banned.py", "$name/$path_accounts/remove_banned.py");
+  }
+
 
   // ##########################################################################
   // alarms
 
-  $content_alarms = template_header($screen_alarms, "Launching PokeAlarm instances...");
+  foreach($servers as $server) {
+    $name = trim($server[0]);
+    $server_path = trim($server[2]);
+    $alarms = trim($server[4]);
+    if ($alarms != 1)
+      continue;
 
-  $curr_alarm = 0;
+    $content_alarms = template_header($screen_alarms, "Launching PokeAlarm instances...");
+    $curr_alarm = 0;
 
-  foreach($alarms as $alarm) {
-    $enabled = trim($alarm[0]);
-    $name = trim($alarm[1]);
-    $address = trim($alarm[2]);
-    $port = trim($alarm[3]);
-    $location = trim($alarm[4]);
-    $config = trim($alarm[5]);
-    $api_key = trim($alarm[6]);
+    foreach($alarms as $alarm) {
+      $enabled = trim($alarm[0]);
+      $name = trim($alarm[1]);
+      $address = trim($alarm[2]);
+      $port = trim($alarm[3]);
+      $location = trim($alarm[4]);
+      $config = trim($alarm[5]);
+      $api_key = trim($alarm[6]);
 
-    // increment alarm number so it matches screen's window number
-    $curr_alarm++;
+      // increment alarm number so it matches screen's window number
+      $curr_alarm++;
 
-    $comment = "# $curr_alarm $name -host $address:$port -loc $location -c $config --------------------";
+      $comment = "# $curr_alarm $name -host $address:$port -loc $location -c $config --------------------";
 
-    $message = "echo \# $curr_alarm $name -host $address:$port -loc $location -c $config";
+      $message = "echo \# $curr_alarm $name -host $address:$port -loc $location -c $config";
 
-    // command to output
-    $command = "screen -S \"$screen_alarms\" -x -X screen bash -c 'python $path_base/$path_pokealarm/runwebhook.py -P $port -c $config -k $api_key";
+      // command to output
+      $command = "screen -S \"$screen_alarms\" -x -X screen bash -c 'python $server_path/$path_pokealarm/runwebhook.py -P $port -c $config -k $api_key";
 
-    if(isset($location) && !empty($location)) {
-      $command .= " -l \"$location\"";
+      if(isset($location) && !empty($location)) {
+        $command .= " -l \"$location\"";
+      }
+
+      $command .= "; exec bash'";
+
+      $content_alarms .= $comment."\n";
+      $content_alarms .= $command."\n";
+      $content_alarms .= $message."\n";
+
+      // Don't include timer on last alarm
+      if($curr_alarm < $total_alarms) {
+        $content_alarms .= "timer 2\n\n";
+      }
     }
 
-    $command .= "; exec bash'";
-
-    $content_alarms .= $comment."\n";
-    $content_alarms .= $command."\n";
-    $content_alarms .= $message."\n";
-
-    // Don't include timer on last alarm
-    if($curr_alarm < $total_alarms) {
-      $content_alarms .= "timer 2\n\n";
-    }
+    // output alarms script
+    $zip->addFromString("$name/$output_alarms", $content_alarms);
   }
-
-  // output alarms script
-  $zip->addFromString($output_alarms, $content_alarms);
 
   // ##########################################################################
   // instances
@@ -588,8 +646,8 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
     }
 
     // distribute proxies
-    if($total_scanners > 0) {
-      $proxies_per_instance = floor($total_proxies / $total_scanners);
+    if($cum_scanners > 0) {
+      $proxies_per_instance = floor($total_proxies / $cum_scanners);
 
       // threshold
       if(!$proxies_to_file && $proxies_per_instance > 10) {
@@ -598,88 +656,106 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
     }
   }
 
-  $content_servers = template_header_server("Launching PokemonGo-Map Server instances...");
-  $content_scanners = template_header($screen_scanners, "Launching PokemonGo-Map Scanner instances...");
-  $content_dump_sp = template_header($screen_dump_sp, "Dumping PokemonGo-Map spawnpoints...");
-  $content_shutdown_servers = "";
-  $content_pogo_captcha = "";
+  $content_servers = array();
+  $content_scanners = array();
+  $content_dump_sp = array();
+  $content_shutdown_servers = array();
+  $content_pogo_captcha = array();
 
-  $curr_server = 0;
-  $curr_scanner = 0;
+  $curr_server = array();
+  $curr_scanner = array();
+
+  foreach ($servers as $server) {
+    $name = trim($server[0]);
+
+    $content_servers[$name] = template_header_server("Launching PokemonGo-Map Server instances...");
+    $content_scanners[$name] = template_header($screen_scanners, "Launching PokemonGo-Map Scanner instances...");
+    $content_dump_sp[$name] = template_header($screen_dump_sp, "Dumping PokemonGo-Map spawnpoints...");
+    $content_shutdown_servers[$name] = "";
+    $content_pogo_captcha[$name] = "";
+
+    $curr_server[$name] = 0;
+    $curr_scanner[$name] = 0;
+  }
+
   $error = false;
   $dump_sp_required = false;
 
   foreach($instances as $instance) {
     $enabled = trim($instance[0]);
-    $modes = trim($instance[1]);
-    $location = trim($instance[2]);
-    $name = trim($instance[3]);
-    $st = trim($instance[4]);
-    $sd = trim($instance[5]);
-    $num_workers = trim($instance[6]);
-    $num_accs = trim($instance[7]);
-    $num_accs_hlvl = trim($instance[8]);
-    $webhook = trim($instance[9]);
+    $server = trim($instance[1]);
+    $webhook = trim($instance[2]);
+    $modes = trim($instance[3]);
+    $location = trim($instance[4]);
+    $name = trim($instance[5]);
+    $st = trim($instance[6]);
+    $sd = trim($instance[7]);
+    $num_workers = trim($instance[8]);
+    $num_accs = trim($instance[9]);
+    $num_accs_hlvl = trim($instance[10]);
+
+    $server_ip =  trim($servers[$server][1]);
+    $server_path =  trim($servers[$server][2]);
 
     // sanitize names
     $clean_name = str_replace(" ", "_", strtolower($name));
 
     if(preg_match("/-cf/i", $modes)) {
       // append path to config filename in -cf
-      $modes = preg_replace('/-cf\s+/i', "-cf $path_base/$path_pogomap/config/", $modes);
+      $modes = preg_replace('/-cf\s+/i', "-cf $server_path/$path_pogomap/config/", $modes);
     }
 
     // separate server instances
     if(preg_match("/-os/i", $modes)) {
-      $curr_server++;
+      $index_server = ++$curr_server[$server];
 
-      $message = "Server $curr_server - $name - $modes";
-      $run_server = "python $path_base/$path_pogomap/runserver.py $modes -sn \"0$curr_server - $name\" -l \"$location\"";
+      $message = "Server $index_server - $name - $modes";
+      $run_server = "python $server_path/$path_pogomap/runserver.py $modes -sn \"0$index_server - $name\" -l \"$location\"";
 
       if($log_messages) {
-        $run_server .= " -v $path_base/$log_filename";
+        $run_server .= " -v $server_path/$log_filename";
       }
       #$run_server .= " -al";
 
       // create restart script
-      $script_content = template_restart_server("server$curr_server", $message, $run_server);
-      $zip->addFromString("restart-server$curr_server.sh", $script_content);
+      $script_content = template_restart_server("server$index_server", $message, $run_server);
+      $zip->addFromString("$server/restart-server$index_server.sh", $script_content);
 
-      $command = "./restart-server$curr_server.sh";
+      $command = "./restart-server$index_server.sh";
       //$command = "screen -S \"$screen_servers\" -x -X screen bash -c '$run_server; exec bash'";
 
-      //$content_servers .= "# $message"."\n";
-      $content_servers .= $command."\n";
-      //$content_servers .= "echo \# $message"."\n\n";
+      //$content_servers[$server] .= "# $message"."\n";
+      $content_servers[$server] .= $command."\n";
+      //$content_servers[$server] .= "echo \# $message"."\n\n";
 
-      if($curr_server < $total_servers) {
-        $content_servers .= "timer 3\n";
+      if($index_server < $total_servers[$server]) {
+        $content_servers[$server] .= "timer 3\n";
       }
 
-      $content_shutdown_servers .= "screen -X -S \"server$curr_server\" quit\n";
-      $content_shutdown_servers .= "echo Screen session \"server$curr_server\" terminated.\n";
-      $content_shutdown_servers .= "sleep 1\n";
+      $content_shutdown_servers[$server] .= "screen -X -S \"server$index_server\" quit\n";
+      $content_shutdown_servers[$server] .= "echo Screen session \"server$index_server\" terminated.\n";
+      $content_shutdown_servers[$server] .= "sleep 1\n";
 
       continue;
     }
 
     // increment scanner number so it matches screen's window number
-    $curr_scanner++;
+    $index_scanner = ++$curr_scanner[$server];
 
     if($curr_account + $num_accs > $total_accounts) {
-      $response["message"] .= "Insufficient accounts, script stopped at instance #$curr_scanner: $name\n";
+      $response["message"] .= "Insufficient accounts, script stopped at instance #$index_scanner: $name\n";
       break;
     }
 
     if($curr_account_hlvl + $num_accs_hlvl > $total_accounts_hlvl) {
-      $response["message"] .= "Insufficient high-level accounts, script stopped at instance #$curr_scanner: $name\n";
+      $response["message"] .= "Insufficient high-level accounts, script stopped at instance #$index_scanner: $name\n";
       break;
     }
 
     // write output script
-    $comment = "# $curr_scanner $name | $modes | st: $st | sd: $sd | w: $num_workers | accs: $num_accs --------------------";
+    $comment = "# $index_scanner $name | $modes | st: $st | sd: $sd | w: $num_workers | accs: $num_accs --------------------";
 
-    $message = "echo \# $curr_scanner $name $modes -st $st -sd $sd -w $num_workers -accs $num_accs";
+    $message = "echo \# $index_scanner $name $modes -st $st -sd $sd -w $num_workers -accs $num_accs";
 
     // spawnpoint clustering
     if($sp_clustering && preg_match("/-ss/i", $modes)) {
@@ -690,37 +766,42 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
       $dump_user = trim($accounts[$curr_account][1]);
       $dump_pass = trim($accounts[$curr_account][2]);
 
-      $output_spawns = "$path_base/$path_spawnpoints/spawns-$curr_scanner.json";
-      $output_compressed = "$path_base/$path_spawnpoints/compressed-$curr_scanner.json";
+      $output_spawns = "$server_path/$path_spawnpoints/spawns-$index_scanner.json";
+      $output_compressed = "$server_path/$path_spawnpoints/compressed-$index_scanner.json";
 
-      $command_clustering = "python $path_base/$path_spclustering/cluster.py $output_spawns -os $output_compressed -r 70 -t 180";
+      $command_clustering = "python $server_path/$path_spclustering/cluster.py $output_spawns -os $output_compressed -r 70 -t 180";
 
-      $command_dump = "screen -S \"$screen_dump_sp\" -x -X screen bash -c 'timeout -sHUP 60s python $path_base/$path_pogomap/runserver.py -P 5010 -l \"$location\" -st $st -u $dump_user -p $dump_pass -ss $output_spawns --dump-spawnpoints; $command_clustering >> $log_dump'";
+      $command_dump = "screen -S \"$screen_dump_sp\" -x -X screen bash -c 'timeout -sHUP 60s python $server_path/$path_pogomap/runserver.py -P 5010 -l \"$location\" -st $st -u $dump_user -p $dump_pass -ss $output_spawns --dump-spawnpoints; $command_clustering >> $log_dump'";
 
-      $content_dump_sp .= $comment."\n";
-      $content_dump_sp .= $command_dump."\n\n";
-      $content_dump_sp .= $message."\n\n";
+      $content_dump_sp[$server] .= $comment."\n";
+      $content_dump_sp[$server] .= $command_dump."\n\n";
+      $content_dump_sp[$server] .= $message."\n\n";
 
-      if($curr_scanner < $total_scanners) {
-        $content_dump_sp .= "timer 5\n\n";
+      if($index_scanner < $total_scanners) {
+        $content_dump_sp[$server] .= "timer 5\n\n";
       }
 
       // append compressed spawnpoints file to -ss flag
       $modes = preg_replace('/-ss/i', "-ss $output_compressed", $modes);
     }
 
-    $command = "screen -S \"$screen_scanners\" -x -X screen bash -c 'python $path_base/$path_pogomap/runserver.py $modes -sn \"$name - $curr_scanner\" -l \"$location\"";
+    $command = "screen -S \"$screen_scanners\" -x -X screen bash -c 'python $server_path/$path_pogomap/runserver.py $modes -sn \"$name - $index_scanner\" -l \"$location\"";
 
 
     // scanners
     if(!preg_match("/-os/i", $modes)) {
+      if ($st != '')
+        $command .= " -st $st";
 
-      // disable db cleanup cycle if instance is not "only-server"
+      if ($sd != '')
+        $command .= " -sd $sd";
+
       // -ari: Seconds for accounts to rest when they fail or are switched out. 0 to disable.
-      $command .= " -st $st -sd $sd -ari $account_rest_interval --disable-clean";
+      // disable db cleanup cycle if instance is not "only-server"
+      $command .= " -ari $account_rest_interval --disable-clean";
 
-      if($curr_scanner == 1 && $log_messages) {
-        //$command .= " -v $path_base/scanner-$log_filename";
+      if($index_scanner == 1 && $log_messages) {
+        //$command .= " -v $server_path/scanner-$log_filename";
       }
 
       // number of workers (only useful if num workers < num accs)
@@ -734,8 +815,7 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
         }
       }
 
-      if($num_accs != 0) {
-
+      if($num_accs_hlvl > 0) {
         // output high-level accounts for each instance in separate files
         $content_accounts_hlvl = "";
 
@@ -750,11 +830,13 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
           $curr_account_hlvl++;
         }
         // output high-level accounts
-        $output_accounts_hlvl = "$path_accounts-hlvl/accounts-hlvl-$curr_scanner-$clean_name.csv";
-        $zip->addFromString($output_accounts_hlvl, $content_accounts_hlvl);
+        $output_accounts_hlvl = "$path_accounts-hlvl/accounts-hlvl-$index_scanner-$clean_name.csv";
+        $zip->addFromString("$server/$output_accounts_hlvl", $content_accounts_hlvl);
 
-        $command .= " -hlvl $path_base/$output_accounts_hlvl";
+        $command .= " -hlvl $server_path/$output_accounts_hlvl";
+      }
 
+      if($num_accs > 0) {
         // output accounts for each instance in separate files
         if($accounts_to_file) {
 
@@ -772,13 +854,13 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
           }
 
           // output accounts
-          $output_accounts = "$path_accounts/accounts-$curr_scanner-$clean_name.csv";
-          $zip->addFromString($output_accounts, $content_accounts);
+          $output_accounts = "$path_accounts/accounts-$index_scanner-$clean_name.csv";
+          $zip->addFromString("$server/$output_accounts", $content_accounts);
 
           // pogo captcha content
-          $content_pogo_captcha .= "python pogo-captcha.py -ac $output_accounts -l \"".str_replace(" ", ",", $location)."\"\n";
+          $content_pogo_captcha[$server] .= "python pogo-captcha.py -ac $output_accounts -l \"".str_replace(" ", ",", $location)."\"\n";
 
-          $command .= " -ac $path_base/$output_accounts";
+          $command .= " -ac $server_path/$output_accounts";
 
         } else {
           // select accounts for this instance
@@ -807,10 +889,10 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
             $curr_proxy++;
           }
 
-          $output_proxies = "$path_proxies/proxies-$curr_scanner-$clean_name.txt";
-          $zip->addFromString($output_proxies, $content_proxies);
+          $output_proxies = "$path_proxies/proxies-$index_scanner-$clean_name.txt";
+          $zip->addFromString("$server/$output_proxies", $content_proxies);
 
-          $command .= " -pxf $path_base/$output_proxies";
+          $command .= " -pxf $server_path/$output_proxies";
 
         } else {
           for($i=0; $i < $proxies_per_instance; $i++) {
@@ -823,7 +905,7 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
       }
     }
 
-    if(isset($webhook) && !empty($webhook)) {
+    if(!empty($webhook)) {
       $webhooks = explode(" ", $webhook);
 
       foreach($webhooks as $webhook) {
@@ -840,75 +922,79 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
 
     /*
     if($log_messages) {
-      $command .= " -v $path_base/$log_filename";
+      $command .= " -v $server_path/$log_filename";
     }
     */
     $command .= "; exec bash'";
 
-    $content_scanners .= $comment."\n";
-    $content_scanners .= $command."\n";
-    $content_scanners .= $message."\n\n";
+    $content_scanners[$server] .= $comment."\n";
+    $content_scanners[$server] .= $command."\n";
+    $content_scanners[$server] .= $message."\n\n";
 
-    if($curr_scanner < $total_scanners) {
+    if($index_scanner < $total_scanners[$server]) {
       // X*#workers+1 seconds of sleep between each instance launched
       $sleeptime = ($time_delay_worker * $num_workers) + 1;
-      $content_scanners .= "timer $sleeptime\n";
+      $content_scanners[$server] .= "timer $sleeptime\n";
     }
 
-
-    if($curr_scanner >= $max_instances) {
-      $response["message"] .= "Warning: instance cutoff reached at $max_instances\n";
-      break;
-    }
   }
 
-  // finalize dump-spawnpoints script
-  $content_dump_sp .= "echo Compressing spawnpoints...\n";
-  $content_dump_sp .= "timer 60\n";
-  $content_dump_sp .= "screen -X -S \"$screen_dump_sp\" quit\n";
+  foreach ($servers as $server) {
+    $name = trim($server[0]);
+    $server_path = trim($server[2]);
+    $database = trim($server[3]);
 
-  // output server scripts
-  if($curr_server > 0) {
-    $zip->addFromString($output_servers, $content_servers);
-    /*
-    $shutdown_servers = "screen -X -S \"$screen_servers\" quit\n";
-    $shutdown_servers .= "echo Screen session \"$screen_servers\" terminated.\n";
-    $zip->addFromString("shutdown-servers.sh", $shutdown_servers);
-    */
-    $zip->addFromString("shutdown-servers.sh", $content_shutdown_servers);
-  }
+    // finalize dump-spawnpoints script
+    $content_dump_sp[$name] .= "echo Compressing spawnpoints...\n";
+    $content_dump_sp[$name] .= "timer 60\n";
+    $content_dump_sp[$name] .= "screen -X -S \"$screen_dump_sp\" quit\n";
 
-  // output scanner scripts
-  if($curr_scanner > 0) {
-    $zip->addFromString($output_scanners, $content_scanners);
-
-    // output pogo captcha
-    if($accounts_to_file) {
-      $zip->addFromString($output_pogo_captcha, $content_pogo_captcha);
+    // output server scripts
+    if($curr_server[$name] > 0) {
+      $zip->addFromString("$name/$output_servers", $content_servers[$name]);
+      /*
+      $shutdown_servers = "screen -X -S \"$screen_servers\" quit\n";
+      $shutdown_servers .= "echo Screen session \"$screen_servers\" terminated.\n";
+      $zip->addFromString("$name/shutdown-servers.sh", $shutdown_servers);
+      */
+      $zip->addFromString("$name/shutdown-servers.sh", $content_shutdown_servers[$name]);
     }
 
-    $shutdown_scanners = "screen -X -S \"$screen_scanners\" quit\n";
-    $shutdown_scanners .= "echo Screen session \"$screen_scanners\" terminated.\n";
-    $shutdown_scanners .= "python $path_base/$path_accounts/shuffle.py\n";
-    $shutdown_scanners .= "python $path_base/$path_accounts-hlvl/shuffle.py\n";
-    $zip->addFromString("shutdown-scanners.sh", $shutdown_scanners);
-  }
+    // output scanner scripts
+    if($curr_scanner[$name] > 0) {
+      $zip->addFromString("$name/$output_scanners", $content_scanners[$name]);
 
-  // output dump spawnpoints script
-  if($dump_sp_required) {
-    $zip->addFromString($output_dump_sp, $content_dump_sp);
+      // output pogo captcha
+      if($accounts_to_file) {
+        $zip->addFromString("$name/$output_pogo_captcha", $content_pogo_captcha[$name]);
+      }
+
+      $shutdown_scanners = "screen -X -S \"$screen_scanners\" quit\n";
+      $shutdown_scanners .= "echo Screen session \"$screen_scanners\" terminated.\n";
+      $shutdown_scanners .= "python $server_path/$path_accounts/shuffle.py\n";
+      $shutdown_scanners .= "python $server_path/$path_accounts-hlvl/shuffle.py\n";
+      $zip->addFromString("$name/shutdown-scanners.sh", $shutdown_scanners);
+    }
+
+    // output dump spawnpoints script
+    if($dump_sp_required) {
+      $zip->addFromString("$name/$output_dump_sp", $content_dump_sp[$name]);
+    }
+
+    if(!empty($database) && $database != 0) {
+      // include mysql database dump script
+      $script_content = template_mysql_dump($mysql_username, $mysql_password, $mysql_database, $mysql_host);
+      $zip->addFromString("$name/$MYSQL_DUMP_SCRIPT_NAME", $script_content);
+
+      // include mysql database drop script
+      $script_content = template_mysql_drop($mysql_username, $mysql_password, $mysql_database, $mysql_host);
+      $zip->addFromString("$name/$MYSQL_DROP_SCRIPT_NAME", $script_content);
+    }
+
   }
 
   $response["message"] .= "Launch script created: ".$zip->numFiles." files output.";
   $response["file"] = $tmp_id;
-
-  // include mysql database dump script
-  $script_content = template_mysql_dump($mysql_username, $mysql_password, $mysql_database, $mysql_host);
-  $zip->addFromString($MYSQL_DUMP_SCRIPT_NAME, $script_content);
-
-  // include mysql database drop script
-  $script_content = template_mysql_drop($mysql_username, $mysql_password, $mysql_database, $mysql_host);
-  $zip->addFromString($MYSQL_DROP_SCRIPT_NAME, $script_content);
 
   $zip->close();
 
