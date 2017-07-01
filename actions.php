@@ -307,15 +307,15 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
     if($first) {
       $first = false;
 
-      if(strcasecmp("server,ip,path,database,alarms,kmail", trim($line)) == 0) {
+      if(strcasecmp("name,ip,path,database,alarms,kmail", trim($line)) == 0) {
         // skip header line
         continue;
       } else {
-        quit("First line of servers CSV file must be column headings: server,ip,path,database,alarms,kmail");
+        quit("First line of servers CSV file must be column headings: name,ip,path,database,alarms,kmail");
       }
     }
 
-    // syntax: server,ip,path,database,kmail
+    // syntax: name,ip,path,database,alarms,kmail
     $server = explode(",", $line);
     $name = trim($server[0]);
 
@@ -416,7 +416,7 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
     $name = trim($alarm[1]);
 
     if($enabled != "1") {
-      $response["message"] .= "Skipped disabled alarm '$alarm[4] : $alarm[3]'\n";
+      $response["message"] .= "Skipped disabled alarm '$alarm[2] : $alarm[3]'\n";
       continue;
     }
 
@@ -472,10 +472,18 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
 
     $enabled = trim($instance[0]);
     $server = trim($instance[1]);
+    $webhook = trim($instance[2]);
 
     if($enabled != "1") {
       $response["message"] .= "Skipped disabled instance '$instance[5] : $instance[4]'\n";
       continue;
+    }
+
+    if (!array_key_exists($server, $servers)) {
+      quit("Instance server '$server' was not found in '$filename_servers'");
+    }
+    if (!empty($webhook) && !array_key_exists($webhook, $alarms)) {
+      quit("Webhook server '$webhook' was not found in '$filename_alarms'");
     }
 
     if(preg_match("/-os/i", $instance[3])) {
@@ -548,14 +556,17 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
   if ($zip->open($output_filename, ZipArchive::CREATE) !== TRUE) {
     quit("Unable to create output zip archive: $output_filename\n");
   }
+  $content_upload_config = "#!/bin/bash\n\n";
 
   foreach($servers as $server) {
     $name = trim($server[0]);
     $ip = trim($server[1]);
     $path = trim($server[2]);
     $database = trim($server[3]);
-    $alarms = trim($server[4]);
+    $alarms_enabled = trim($server[4]);
     $kmail = trim($server[5]);
+
+      $content_upload_config .= "scp -r ../Proxies/proxies.txt ../$name/* $name/*.sh $name/$path_accounts $name/$path_accounts-hlvl root@$ip:$path\n";
 
     $zip->addEmptyDir($name);
     /*
@@ -563,22 +574,29 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
     $zip->addEmptyDir("$name/$path_accounts");
     $zip->addEmptyDir("$name/$path_accounts-hlvl");
     */
-    $update_script = template_update_script($path_pogomap);
+    $update_script = template_update_script("$path/$path_pogomap");
     $zip->addFromString("$name/update.sh", $update_script);
+
+    $proxy_checker = template_header('proxy-checker', "Launching Proxy Checker script...");
+    $proxy_checker .= "screen -S \"proxy-checker\" -x -X screen bash -c 'while true; do rm $path/proxies_*.txt; $path/check_proxies.sh && cp $path/proxies_good.txt $path/socks5.txt && sleep 3600; done; exec bash'";
+
+    $zip->addFromString("$name/launch-proxy-checker.sh", $proxy_checker);
+    $zip->addFile("$PATH_SCRIPTS/check_proxies.sh", "$name/check_proxies.sh");
     $zip->addFile("$PATH_SCRIPTS/shuffle.py", "$name/$path_accounts/shuffle.py");
     $zip->addFile("$PATH_SCRIPTS/shuffle.py", "$name/$path_accounts-hlvl/shuffle.py");
     $zip->addFile("$PATH_SCRIPTS/remove_banned.py", "$name/$path_accounts/remove_banned.py");
   }
 
+  $zip->addFromString("upload_config.sh", $content_upload_config);
 
   // ##########################################################################
   // alarms
 
   foreach($servers as $server) {
-    $name = trim($server[0]);
+    $server_name = trim($server[0]);
     $server_path = trim($server[2]);
-    $alarms = trim($server[4]);
-    if ($alarms != 1)
+    $server_alarms = trim($server[4]);
+    if ($server_alarms != 1)
       continue;
 
     $content_alarms = template_header($screen_alarms, "Launching PokeAlarm instances...");
@@ -596,18 +614,19 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
       // increment alarm number so it matches screen's window number
       $curr_alarm++;
 
-      $comment = "# $curr_alarm $name -host $address:$port -loc $location -c $config --------------------";
+      $comment = "# $curr_alarm $name -host $address:$port -l $location -cf $config -k $api_key -a alarms.json -f filters.json --------------------";
 
-      $message = "echo \# $curr_alarm $name -host $address:$port -loc $location -c $config";
+      $message = "echo \# $curr_alarm $name -host $address:$port -cf $config";
 
       // command to output
-      $command = "screen -S \"$screen_alarms\" -x -X screen bash -c 'python $server_path/$path_pokealarm/runwebhook.py -P $port -c $config -k $api_key";
+      $command = "screen -S \"$screen_alarms\" -x -X screen bash -c 'python $server_path/$path_pokealarm/start_pokealarm.py; exec bash'";
 
+      /*
       if(isset($location) && !empty($location)) {
         $command .= " -l \"$location\"";
       }
-
       $command .= "; exec bash'";
+      */
 
       $content_alarms .= $comment."\n";
       $content_alarms .= $command."\n";
@@ -620,7 +639,12 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
     }
 
     // output alarms script
-    $zip->addFromString("$name/$output_alarms", $content_alarms);
+    $zip->addFromString("$server_name/$output_alarms", $content_alarms);
+
+    $shutdown_alarms = "#!/bin/bash\n\n";
+    $shutdown_alarms .= "screen -X -S \"$screen_alarms\" quit\n";
+    $shutdown_alarms .= "echo Screen session \"$screen_alarms\" terminated.\n";
+    $zip->addFromString("$server_name/shutdown-alarms.sh", $shutdown_alarms);
   }
 
   // ##########################################################################
