@@ -23,7 +23,7 @@
 # Found this script useful? Buy me a beer: https://paypal.me/dshoreman
 #
 
-Timeout=5
+Timeout=2
 MaxDelay=3
 MaxRetries=3
 ProxyFile=proxies.txt
@@ -35,7 +35,7 @@ PtcUrl="https://sso.pokemon.com/sso/login?service=https%3A%2F%2Fsso.pokemon.com%
 if [ ! -f "$ProxyFile" ]; then
     echo "Could not find ${ProxyFile}!"
 
-    read -p "Continue checking with external IP? [y/N] " response
+    read -r -p "Continue checking with external IP? [y/N] " response
     case "$response" in
         [yY]|[yY][eE][sS])
             SKIP_PROXY=true
@@ -71,9 +71,10 @@ fi
 echo
 echo "Beginning PoGo/PTC ban check for ${total} proxies..."
 
-declare -i pogo_fail
-declare -i ptc_fail
-declare -i ptc_bans
+declare -i pogo_fail=0
+declare -i pogo_bans=0
+declare -i ptc_fail=0
+declare -i ptc_bans=0
 
 printf "\n %-${longest}s   PoGo [ Status ]  PTC [ Status ]\n" 'Proxy'
 
@@ -134,6 +135,9 @@ echo
 echo "Proxy check complete!"
 
 if [ "$SKIP_PROXY" = true ]; then exit; fi
+
+pogo_good=$((total - pogo_bans - pogo_fail))
+ptc_good=$((total - ptc_bans - ptc_fail))
 
 echo "PokemonGO has $pogo_bans bans, $pogo_good good and $pogo_fail other failures."
 echo "PTC has $ptc_bans bans, $ptc_good good and $ptc_fail other failures."

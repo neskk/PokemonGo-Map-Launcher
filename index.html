@@ -68,7 +68,7 @@
       <div class="form-group">
         <label for="path-proxies" class="col-sm-4 control-label">Proxy List Dumps</label>
         <div class="col-sm-8">
-          <input type="text" class="form-control" id="path-proxies" name="path-proxies" placeholder="proxies" value="proxies">
+          <input type="text" class="form-control" id="path-proxies" name="path-proxies" placeholder="" value="">
         </div>
       </div>
       <h4>Screen Session Names</h4>
@@ -204,6 +204,12 @@
         </div>
       </div>
       <div class="form-group">
+        <label for="output-proxies" class="col-sm-4 control-label">Proxy list</label>
+        <div class="col-sm-8">
+          <input type="text" class="form-control" id="output-proxies" name="output-proxies" placeholder="socks5.txt" value="socks5.txt">
+        </div>
+      </div>
+      <div class="form-group">
         <label for="output-dump-sp" class="col-sm-4 control-label">Dump Spawnpoints</label>
         <div class="col-sm-8">
           <input type="text" class="form-control" id="output-dump-sp" name="output-dump-sp" placeholder="dump-spawnpoints.sh" value="dump-spawnpoints.sh">
@@ -253,7 +259,7 @@
           <div class="col-sm-offset-4 col-sm-8">
             <div class="checkbox">
               <label>
-                <input type="checkbox" id="enable-proxies" name="enable-proxies"> Assign proxies to instances
+                <input type="checkbox" id="enable-proxies" name="enable-proxies"> Assign proxies to servers
               </label>
             </div>
           </div>
@@ -271,7 +277,7 @@
           <div class="col-sm-offset-4 col-sm-8">
             <div class="checkbox">
               <label>
-                <input type="checkbox" id="proxies-to-file" name="proxies-to-file" checked> Output proxies to a text file for each instance
+                <input type="checkbox" id="proxies-to-file" name="proxies-to-file" checked> Output proxies to a text file for each server
               </label>
             </div>
           </div>

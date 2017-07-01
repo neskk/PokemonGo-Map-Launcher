@@ -133,7 +133,7 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
   if(isset($_POST["path-proxies"]) && !empty($_POST["path-proxies"])) {
     $path_proxies = trim($_POST["path-proxies"]);
   } else {
-    $path_proxies = "proxies";
+    $path_proxies = "";
   }
 
   if(isset($_POST["screen-servers"]) && !empty($_POST["screen-servers"])) {
@@ -272,6 +272,16 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
     $output_alarms = trim($_POST["output-alarms"]);
   } else {
     $output_alarms = "launch-alarms.sh";
+  }
+
+  if(isset($_POST["output-proxies"]) && !empty($_POST["output-proxies"])) {
+    $output_proxies = trim($_POST["output-proxies"]);
+  } else {
+    $output_proxies = "socks5.txt";
+  }
+
+  if (!empty($path_proxies)) {
+    $output_proxies = "$path_proxies/$output_proxies";
   }
 
   if(isset($_POST["output-dump-sp"]) && !empty($_POST["output-dump-sp"])) {
@@ -521,21 +531,33 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
 
 
     $first = true;
+    $is_csv = false;
 
     while (($line = fgets($read_handle)) !== false) {
       if($first) {
         $first = false;
 
-        if(strcasecmp("ip:port", trim($line)) == 0) {
+        if(strcasecmp("enabled,ip:port", trim($line)) == 0) {
+          $is_csv = true;
           // skip header line
           continue;
-        } else {
-          quit("First line of proxy list file must be: ip:port");
         }
       }
+      if ($is_csv) {
+        $proxy = explode(",", $line);
+        $enabled = trim($proxy[0]);
+        $proxy_ip_port = trim($proxy[1]);
 
-      // syntax: ip:port
-      $proxies[] = trim($line);
+        if($enabled != "1") {
+          $response["message"] .= "Skipped disabled proxy '$proxy_ip_port'.\n";
+          continue;
+        }
+
+        $proxies[] = $proxy_ip_port;
+      } else {
+        // syntax: ip:port
+        $proxies[] = trim($line);
+      }
     }
 
     // close read handle
@@ -556,6 +578,8 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
   if ($zip->open($output_filename, ZipArchive::CREATE) !== TRUE) {
     quit("Unable to create output zip archive: $output_filename\n");
   }
+
+  $scanner_servers = 0;
   $content_upload_config = "#!/bin/bash\n\n";
 
   foreach($servers as $server) {
@@ -566,7 +590,11 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
     $alarms_enabled = trim($server[4]);
     $kmail = trim($server[5]);
 
-      $content_upload_config .= "scp -r ../Proxies/proxies.txt ../$name/* $name/*.sh $name/$path_accounts $name/$path_accounts-hlvl root@$ip:$path\n";
+    $content_upload_config .= "scp -r ../$name/* $name/* root@$ip:$path\n";
+
+    if($total_scanners[$name] > 0) {
+      $scanner_servers++;
+    }
 
     $zip->addEmptyDir($name);
     /*
@@ -577,11 +605,11 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
     $update_script = template_update_script("$path/$path_pogomap");
     $zip->addFromString("$name/update.sh", $update_script);
 
-    $proxy_checker = template_header('proxy-checker', "Launching Proxy Checker script...");
-    $proxy_checker .= "screen -S \"proxy-checker\" -x -X screen bash -c 'while true; do rm $path/proxies_*.txt; $path/check_proxies.sh && cp $path/proxies_good.txt $path/socks5.txt && sleep 3600; done; exec bash'";
-
-    $zip->addFromString("$name/launch-proxy-checker.sh", $proxy_checker);
+    $command = "while true; do rm $path/proxies_*.txt; $path/check_proxies.sh && cp $path/proxies_good.txt $path/$output_proxies && sleep 3600; done";
+    $proxy_checker = template_restart_server("proxy-checker", "Launching Proxy Checker script...", $command);
+    $zip->addFromString("$name/restart-proxy-checker.sh", $proxy_checker);
     $zip->addFile("$PATH_SCRIPTS/check_proxies.sh", "$name/check_proxies.sh");
+
     $zip->addFile("$PATH_SCRIPTS/shuffle.py", "$name/$path_accounts/shuffle.py");
     $zip->addFile("$PATH_SCRIPTS/shuffle.py", "$name/$path_accounts-hlvl/shuffle.py");
     $zip->addFile("$PATH_SCRIPTS/remove_banned.py", "$name/$path_accounts/remove_banned.py");
@@ -660,7 +688,7 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
   }
 
   $curr_proxy = 0;
-  $proxies_per_instance = 0;
+  $proxies_per_server = 0;
 
   // randomize the proxy list
   if($enable_proxies) {
@@ -671,11 +699,11 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
 
     // distribute proxies
     if($cum_scanners > 0) {
-      $proxies_per_instance = floor($total_proxies / $cum_scanners);
+      $proxies_per_server = floor($total_proxies / $scanner_servers);
 
       // threshold
-      if(!$proxies_to_file && $proxies_per_instance > 10) {
-        $proxies_per_instance = 10;
+      if(!$proxies_to_file && $proxies_per_server > 10) {
+        $proxies_per_server = 10;
       }
     }
   }
@@ -700,6 +728,24 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
 
     $curr_server[$name] = 0;
     $curr_scanner[$name] = 0;
+
+    if($proxies_to_file && $total_scanners[$name] > 0) {
+      $content_proxies = "";
+
+      for($i=0; $i < $proxies_per_server; $i++) {
+        $ip_port = $proxies[$curr_proxy];
+
+        $content_proxies .= "socks5://$ip_port\n";
+        $curr_proxy++;
+      }
+      // Proxy checker will check "proxies.txt" and save good proxies to $output_proxies
+      if (!empty($path_proxies)) {
+        $zip->addFromString("$name/$path_proxies/proxies.txt", $content_proxies);
+      } else {
+        $zip->addFromString("$name/proxies.txt", $content_proxies);
+      }
+      $zip->addFromString("$name/$output_proxies", $content_proxies);
+    }
   }
 
   $error = false;
@@ -721,6 +767,11 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
     $server_ip =  trim($servers[$server][1]);
     $server_path =  trim($servers[$server][2]);
 
+    $server_proxies = 0;
+
+    if($total_scanners[$server] > 0)
+      $server_proxies = $proxies_per_server;
+
     // sanitize names
     $clean_name = str_replace(" ", "_", strtolower($name));
 
@@ -736,9 +787,10 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
       $message = "Server $index_server - $name - $modes";
       $run_server = "python $server_path/$path_pogomap/runserver.py $modes -sn \"0$index_server - $name\" -l \"$location\"";
 
-      if($log_messages) {
-        $run_server .= " -v $server_path/$log_filename";
+      if($index_server == 1 && $log_messages) {
+        $run_server .= " -v $server_path/server-$log_filename";
       }
+      // Access logs
       #$run_server .= " -al";
 
       // create restart script
@@ -801,7 +853,7 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
       $content_dump_sp[$server] .= $command_dump."\n\n";
       $content_dump_sp[$server] .= $message."\n\n";
 
-      if($index_scanner < $total_scanners) {
+      if($index_scanner < $total_scanners[$server]) {
         $content_dump_sp[$server] .= "timer 5\n\n";
       }
 
@@ -825,7 +877,7 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
       $command .= " -ari $account_rest_interval --disable-clean";
 
       if($index_scanner == 1 && $log_messages) {
-        //$command .= " -v $server_path/scanner-$log_filename";
+        $command .= " -v $server_path/scanner-$log_filename";
       }
 
       // number of workers (only useful if num workers < num accs)
@@ -900,26 +952,13 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
         }
       }
 
-      if($enable_proxies && $proxies_per_instance > 0) {
-        $command .= " -me 5 -pxt 1 -pxr 3600 -pxo round";
+      if($enable_proxies && $server_proxies > 0) {
+        $command .= " -pxt 1 -pxd full -pxr 3600 -pxo round";
 
         if($proxies_to_file) {
-          $content_proxies = "";
-
-          for($i=0; $i < $proxies_per_instance; $i++) {
-            $ip_port = $proxies[$curr_proxy];
-
-            $content_proxies .= "socks5://$ip_port\n";
-            $curr_proxy++;
-          }
-
-          $output_proxies = "$path_proxies/proxies-$index_scanner-$clean_name.txt";
-          $zip->addFromString("$server/$output_proxies", $content_proxies);
-
           $command .= " -pxf $server_path/$output_proxies";
-
         } else {
-          for($i=0; $i < $proxies_per_instance; $i++) {
+          for($i=0; $i < $server_proxies; $i++) {
             $ip_port = $proxies[$curr_proxy];
 
             $command .= "-px socks5://$ip_port";
@@ -944,11 +983,6 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
       }
     }
 
-    /*
-    if($log_messages) {
-      $command .= " -v $server_path/$log_filename";
-    }
-    */
     $command .= "; exec bash'";
 
     $content_scanners[$server] .= $comment."\n";
