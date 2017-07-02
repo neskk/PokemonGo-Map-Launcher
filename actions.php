@@ -290,10 +290,10 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
     $output_dump_sp = "dump-spawnpoints.sh";
   }
 
-  if(isset($_POST["output-pogo-captcha"]) && !empty($_POST["output-pogo-captcha"])) {
-    $output_pogo_captcha = trim($_POST["output-pogo-captcha"]);
+  if(isset($_POST["url-proxies"]) && !empty($_POST["url-proxies"])) {
+    $url_proxies = trim($_POST["url-proxies"]);
   } else {
-    $output_pogo_captcha = "pogo-captcha.txt";
+    $url_proxies = "";
   }
 
   // ##########################################################################
@@ -605,7 +605,11 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
     $update_script = template_update_script("$path/$path_pogomap");
     $zip->addFromString("$name/update.sh", $update_script);
 
-    $command = "while true; do rm $path/proxies_*.txt; $path/check_proxies.sh && cp $path/proxies_good.txt $path/$output_proxies && sleep 3600; done";
+    if (!empty($url_proxies) or $url_proxies != "") {
+      $url_proxy_list = "$url_proxies/proxies-$name.txt";
+    }
+
+    $command = "while true; do rm $path/proxies_*.txt; $path/check_proxies.sh proxies.txt $url_proxy_list && cp $path/proxies_good.txt $path/$output_proxies && sleep 3600; done";
     $proxy_checker = template_restart_server("proxy-checker", "Launching Proxy Checker script...", $command);
     $zip->addFromString("$name/restart-proxy-checker.sh", $proxy_checker);
     $zip->addFile("$PATH_SCRIPTS/check_proxies.sh", "$name/check_proxies.sh");
@@ -728,24 +732,6 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
 
     $curr_server[$name] = 0;
     $curr_scanner[$name] = 0;
-
-    if($proxies_to_file && $total_scanners[$name] > 0) {
-      $content_proxies = "";
-
-      for($i=0; $i < $proxies_per_server; $i++) {
-        $ip_port = $proxies[$curr_proxy];
-
-        $content_proxies .= "socks5://$ip_port\n";
-        $curr_proxy++;
-      }
-      // Proxy checker will check "proxies.txt" and save good proxies to $output_proxies
-      if (!empty($path_proxies)) {
-        $zip->addFromString("$name/$path_proxies/proxies.txt", $content_proxies);
-      } else {
-        $zip->addFromString("$name/proxies.txt", $content_proxies);
-      }
-      $zip->addFromString("$name/$output_proxies", $content_proxies);
-    }
   }
 
   $error = false;
@@ -1002,10 +988,28 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
     $server_path = trim($server[2]);
     $database = trim($server[3]);
 
-    // finalize dump-spawnpoints script
-    $content_dump_sp[$name] .= "echo Compressing spawnpoints...\n";
-    $content_dump_sp[$name] .= "timer 60\n";
-    $content_dump_sp[$name] .= "screen -X -S \"$screen_dump_sp\" quit\n";
+    // output proxy lists
+    if($proxies_to_file && $total_scanners[$name] > 0) {
+      $content_proxies = "";
+
+      for($i=0; $i < $proxies_per_server; $i++) {
+        $ip_port = $proxies[$curr_proxy];
+
+        $content_proxies .= "socks5://$ip_port\n";
+        $curr_proxy++;
+      }
+
+      if (!empty($url_proxies) or $url_proxies != "") {
+        $filepath_proxies = "proxies-$name.txt";
+      } elseif (!empty($path_proxies)) {
+        $filepath_proxies = "$name/$path_proxies/proxies.txt";
+      } else {
+        $filepath_proxies = "$name/proxies.txt";
+      }
+
+      $zip->addFromString($filepath_proxies, $content_proxies);
+      $zip->addFromString("$name/$output_proxies", $content_proxies);
+    }
 
     // output server scripts
     if($curr_server[$name] > 0) {
@@ -1024,7 +1028,7 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
 
       // output pogo captcha
       if($accounts_to_file) {
-        $zip->addFromString("$name/$output_pogo_captcha", $content_pogo_captcha[$name]);
+        $zip->addFromString("$name/pogo-captcha.txt", $content_pogo_captcha[$name]);
       }
 
       $shutdown_scanners = "screen -X -S \"$screen_scanners\" quit\n";
@@ -1036,6 +1040,11 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
 
     // output dump spawnpoints script
     if($dump_sp_required) {
+      // finalize dump-spawnpoints script
+      $content_dump_sp[$name] .= "echo Compressing spawnpoints...\n";
+      $content_dump_sp[$name] .= "timer 60\n";
+      $content_dump_sp[$name] .= "screen -X -S \"$screen_dump_sp\" quit\n";
+
       $zip->addFromString("$name/$output_dump_sp", $content_dump_sp[$name]);
     }
 

@@ -26,14 +26,24 @@
 Timeout=2
 MaxDelay=3
 MaxRetries=3
-ProxyFile=proxies.txt
+ProxyFile=""
+
+if [ ! -z "$1" ]; then
+    ProxyFile=$1
+fi
+
+if [ ! -z "$2" ]; then
+    curl -s $2 --output $ProxyFile
+fi
 
 UserAgent="pokemongo/1 CFNetwork/758.5.3 Darwin/15.6.0"
 PogoUrl="https://pgorelease.nianticlabs.com/plfe/version"
 PtcUrl="https://sso.pokemon.com/sso/login?service=https%3A%2F%2Fsso.pokemon.com%2Fsso%2Foauth2.0%2FcallbackAuthorize"
 
 if [ ! -f "$ProxyFile" ]; then
-    echo "Could not find ${ProxyFile}!"
+    if [ ! -z "$ProxyFile" ]; then
+      echo "Could not find ${ProxyFile}!"
+    fi
 
     read -r -p "Continue checking with external IP? [y/N] " response
     case "$response" in
