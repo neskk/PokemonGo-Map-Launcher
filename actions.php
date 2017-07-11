@@ -292,6 +292,7 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
 
   if(isset($_POST["url-proxies"]) && !empty($_POST["url-proxies"])) {
     $url_proxies = trim($_POST["url-proxies"]);
+    $proxies_to_file = true;
   } else {
     $url_proxies = "";
   }
@@ -519,49 +520,54 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
   $proxies = array();
 
   if($enable_proxies) {
+    if(empty($filename_proxies) || $filename_proxies == "") {
+      if(empty($url_proxies) || $url_proxies == "") {
+        quit("No proxy list file and no proxy list URL. Please supply one of these fields.");
+      }
+    } else {
+      if($_FILES["file-proxies"]["error"] != UPLOAD_ERR_OK || $_FILES["file-proxies"]["size"] == 0) {
+        quit("Proxy list file upload error - code ".$_FILES["file-proxies"]["error"]);
+      }
+      if($_FILES["file-proxies"]["size"] > 100000) {
+        quit("File '$filename_proxies' exceeds maximum upload size.");
+      }
 
-    if($_FILES["file-proxies"]["error"] != UPLOAD_ERR_OK || $_FILES["file-proxies"]["size"] == 0) {
-      quit("Proxy list file upload error - code ".$_FILES["file-proxies"]["error"]);
-    }
-    if($_FILES["file-proxies"]["size"] > 100000) {
-      quit("File '$filename_proxies' exceeds maximum upload size.");
-    }
-
-    $read_handle = fopen($file_proxies, "r") or quit("Unable to open file: $file_proxies");
+      $read_handle = fopen($file_proxies, "r") or quit("Unable to open file: $file_proxies");
 
 
-    $first = true;
-    $is_csv = false;
+      $first = true;
+      $is_csv = false;
 
-    while (($line = fgets($read_handle)) !== false) {
-      if($first) {
-        $first = false;
+      while (($line = fgets($read_handle)) !== false) {
+        if($first) {
+          $first = false;
 
-        if(strcasecmp("enabled,ip:port", trim($line)) == 0) {
-          $is_csv = true;
-          // skip header line
-          continue;
+          if(strcasecmp("enabled,ip:port", trim($line)) == 0) {
+            $is_csv = true;
+            // skip header line
+            continue;
+          }
+        }
+        if ($is_csv) {
+          $proxy = explode(",", $line);
+          $enabled = trim($proxy[0]);
+          $proxy_ip_port = trim($proxy[1]);
+
+          if($enabled != "1") {
+            $response["message"] .= "Skipped disabled proxy '$proxy_ip_port'.\n";
+            continue;
+          }
+
+          $proxies[] = $proxy_ip_port;
+        } else {
+          // syntax: ip:port
+          $proxies[] = trim($line);
         }
       }
-      if ($is_csv) {
-        $proxy = explode(",", $line);
-        $enabled = trim($proxy[0]);
-        $proxy_ip_port = trim($proxy[1]);
 
-        if($enabled != "1") {
-          $response["message"] .= "Skipped disabled proxy '$proxy_ip_port'.\n";
-          continue;
-        }
-
-        $proxies[] = $proxy_ip_port;
-      } else {
-        // syntax: ip:port
-        $proxies[] = trim($line);
-      }
+      // close read handle
+      fclose($read_handle);
     }
-
-    // close read handle
-    fclose($read_handle);
   }
 
   $total_proxies = count($proxies);
@@ -605,11 +611,13 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
     $update_script = template_update_script("$path/$path_pogomap");
     $zip->addFromString("$name/update.sh", $update_script);
 
-    if (!empty($url_proxies) or $url_proxies != "") {
-      $url_proxy_list = "$url_proxies/proxies-$name.txt";
+    if (!empty($url_proxies) && $url_proxies != "") {
+      #$url_proxy_list = "$url_proxies/proxies-$name.txt";
+      $command = "while true; do rm $path/proxies_*.txt; $path/check_proxies.sh proxies.txt $url_proxies && cp $path/proxies_good.txt $path/$output_proxies && sleep 600; done";
+    } else {
+      $command = "while true; do rm $path/proxies_*.txt; $path/check_proxies.sh proxies.txt && cp $path/proxies_good.txt $path/$output_proxies && sleep 600; done";
     }
 
-    $command = "while true; do rm $path/proxies_*.txt; $path/check_proxies.sh proxies.txt $url_proxy_list && cp $path/proxies_good.txt $path/$output_proxies && sleep 3600; done";
     $proxy_checker = template_restart_server("proxy-checker", "Launching Proxy Checker script...", $command);
     $zip->addFromString("$name/restart-proxy-checker.sh", $proxy_checker);
     $zip->addFile("$PATH_SCRIPTS/check_proxies.sh", "$name/check_proxies.sh");
@@ -696,21 +704,24 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
 
   // randomize the proxy list
   if($enable_proxies) {
+      if($total_proxies > 0) {
+        if($shuffle_proxies) {
+          shuffle($proxies);
+        }
 
-    if($shuffle_proxies) {
-      shuffle($proxies);
-    }
+        // distribute proxies
+        if($cum_scanners > 0) {
+          $proxies_per_server = floor($total_proxies / $scanner_servers);
 
-    // distribute proxies
-    if($cum_scanners > 0) {
-      $proxies_per_server = floor($total_proxies / $scanner_servers);
-
-      // threshold
-      if(!$proxies_to_file && $proxies_per_server > 10) {
-        $proxies_per_server = 10;
+          // threshold
+          if(!$proxies_to_file && $proxies_per_server > 10) {
+            $proxies_per_server = 10;
+          }
+        }
+      } elseif(!empty($url_proxies) && $url_proxies != "") {
+        $proxies_per_server = 1;
       }
     }
-  }
 
   $content_servers = array();
   $content_scanners = array();
@@ -989,24 +1000,23 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
     $database = trim($server[3]);
 
     // output proxy lists
-    if($proxies_to_file && $total_scanners[$name] > 0) {
+    if($proxies_to_file && $total_scanners[$name] > 0 && $total_proxies > 0) {
       $content_proxies = "";
-
       for($i=0; $i < $proxies_per_server; $i++) {
         $ip_port = $proxies[$curr_proxy];
 
-        $content_proxies .= "socks5://$ip_port\n";
+        if(!preg_match("/socks5/i", $ip_port)) {
+          $content_proxies .= "socks5://$ip_port\n";
+        } else {
+          $content_proxies .= "$ip_port\n";
+        }
         $curr_proxy++;
       }
-
-      if (!empty($url_proxies) or $url_proxies != "") {
-        $filepath_proxies = "proxies-$name.txt";
-      } elseif (!empty($path_proxies)) {
+      if (!empty($path_proxies)) {
         $filepath_proxies = "$name/$path_proxies/proxies.txt";
       } else {
         $filepath_proxies = "$name/proxies.txt";
       }
-
       $zip->addFromString($filepath_proxies, $content_proxies);
       $zip->addFromString("$name/$output_proxies", $content_proxies);
     }
