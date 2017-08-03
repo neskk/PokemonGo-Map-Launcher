@@ -79,7 +79,7 @@ function template_restart_server($screen_session, $message, $command) {
   return sprintf($format, $screen_session, $message, $command);
 }
 
-function template_update_script($path_pogomap) {
+function template_update_script($base_path, $path_accounts, $path_pogomap) {
   global $PATH_TEMPLATES;
 
   $filename = "$PATH_TEMPLATES/update.txt";
@@ -87,7 +87,18 @@ function template_update_script($path_pogomap) {
   $format = fread($read_handle, filesize($filename));
   fclose($read_handle);
 
-  return sprintf($format, $path_pogomap);
+  return sprintf($format, $base_path, $path_accounts, $path_pogomap);
+}
+
+function template_update_proxies($base_path, $proxies_url, $output_file) {
+  global $PATH_TEMPLATES;
+
+  $filename = "$PATH_TEMPLATES/update-proxies.txt";
+  $read_handle = fopen($filename, "r");
+  $format = fread($read_handle, filesize($filename));
+  fclose($read_handle);
+
+  return sprintf($format, $base_path, $proxies_url, $output_file);
 }
 
 $response = [ "message" => "", "file" => ""];
@@ -596,7 +607,7 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
     $alarms_enabled = trim($server[4]);
     $kmail = trim($server[5]);
 
-    $content_upload_config .= "scp -r ../$name/* $name/* root@$ip:$path\n";
+    $content_upload_config .= "scp -r $name/* ../../Configuration/$name/* root@$ip:$path\n";
 
     if($total_scanners[$name] > 0) {
       $scanner_servers++;
@@ -608,19 +619,13 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
     $zip->addEmptyDir("$name/$path_accounts");
     $zip->addEmptyDir("$name/$path_accounts-hlvl");
     */
-    $update_script = template_update_script("$path/$path_pogomap");
+    $update_script = template_update_script($path, $path_accounts, $path_pogomap);
     $zip->addFromString("$name/update.sh", $update_script);
 
     if (!empty($url_proxies) && $url_proxies != "") {
-      #$url_proxy_list = "$url_proxies/proxies-$name.txt";
-      $command = "while true; do rm $path/proxies_*.txt; $path/check_proxies.sh proxies.txt $url_proxies && cp $path/proxies_good.txt $path/$output_proxies && sleep 600; done";
-    } else {
-      $command = "while true; do rm $path/proxies_*.txt; $path/check_proxies.sh proxies.txt && cp $path/proxies_good.txt $path/$output_proxies && sleep 600; done";
+      $proxies_script = template_update_proxies($path, "$url_proxies/socks5.txt", $output_proxies);
+      $zip->addFromString("$name/update-proxies.sh", $proxies_script);
     }
-
-    $proxy_checker = template_restart_server("proxy-checker", "Launching Proxy Checker script...", $command);
-    $zip->addFromString("$name/restart-proxy-checker.sh", $proxy_checker);
-    $zip->addFile("$PATH_SCRIPTS/check_proxies.sh", "$name/check_proxies.sh");
 
     $zip->addFile("$PATH_SCRIPTS/shuffle.py", "$name/$path_accounts/shuffle.py");
     $zip->addFile("$PATH_SCRIPTS/shuffle.py", "$name/$path_accounts-hlvl/shuffle.py");
@@ -738,7 +743,7 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
     $content_servers[$name] = template_header_server("Launching PokemonGo-Map Server instances...");
     $content_scanners[$name] = template_header($screen_scanners, "Launching PokemonGo-Map Scanner instances...");
     $content_dump_sp[$name] = template_header($screen_dump_sp, "Dumping PokemonGo-Map spawnpoints...");
-    $content_shutdown_servers[$name] = "";
+    $content_shutdown_servers[$name] = "#!/bin/bash\n";
     $content_pogo_captcha[$name] = "";
 
     $curr_server[$name] = 0;
@@ -858,7 +863,7 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
       $modes = preg_replace('/-ss/i', "-ss $output_compressed", $modes);
     }
 
-    $command = "screen -S \"$screen_scanners\" -x -X screen bash -c 'python $server_path/$path_pogomap/runserver.py $modes -sn \"$name - $index_scanner\" -l \"$location\"";
+    $command = "screen -S \"$screen_scanners\" -x -X screen bash -c 'while true; do python $server_path/$path_pogomap/runserver.py $modes -sn \"$name - $index_scanner\" -l \"$location\"";
 
 
     // scanners
@@ -980,7 +985,7 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
       }
     }
 
-    $command .= "; exec bash'";
+    $command .= "; done; exec bash'";
 
     $content_scanners[$server] .= $comment."\n";
     $content_scanners[$server] .= $command."\n";
@@ -1041,10 +1046,10 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
         $zip->addFromString("$name/pogo-captcha.txt", $content_pogo_captcha[$name]);
       }
 
-      $shutdown_scanners = "screen -X -S \"$screen_scanners\" quit\n";
+      $shutdown_scanners = "#!/bin/bash\n";
+      $shutdown_scanners .= "screen -X -S \"$screen_scanners\" quit\n";
       $shutdown_scanners .= "echo Screen session \"$screen_scanners\" terminated.\n";
-      $shutdown_scanners .= "python $server_path/$path_accounts/shuffle.py\n";
-      $shutdown_scanners .= "python $server_path/$path_accounts-hlvl/shuffle.py\n";
+      $shutdown_scanners .= "if [ ! -z \"$1\" ]; then python $server_path/$path_accounts/shuffle.py && python $server_path/$path_accounts-hlvl/shuffle.py && echo \"Successfully shuffled accounts.\"; fi\n";
       $zip->addFromString("$name/shutdown-scanners.sh", $shutdown_scanners);
     }
 

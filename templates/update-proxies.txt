@@ -1,0 +1,4 @@
+#!/bin/bash
+# Base path
+cd %1$s/
+curl -s %2$s --output %3$s

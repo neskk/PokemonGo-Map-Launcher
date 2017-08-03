@@ -1,8 +1,19 @@
 #!/bin/bash
+# Base path
+cd %1$s/
 ./shutdown-scanners.sh
 ./shutdown-servers.sh
-cd %1$s/
+read -rp "Shuffle accounts before updating? [y/N] " response
+  case "$response" in
+      [yY]|[yY][eE][sS])
+          python %2$s/shuffle.py && python %2$s-hlvl/shuffle.py && echo "Successfully shuffled accounts."
+          ;;
+  esac
+# PoGoMap path
+cd %3$s/
 git pull
-pip install appdirs pyparsing --upgrade
+pip install appdirs pyparsing setuptools --upgrade
 pip install -r requirements.txt --upgrade
 npm install --unsafe-perm
+npm run build
+cd ..
