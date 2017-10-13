@@ -607,7 +607,7 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
     $alarms_enabled = trim($server[4]);
     $kmail = trim($server[5]);
 
-    $content_upload_config .= "scp -r $name/* ../../Configuration/$name/* root@$ip:$path\n";
+    $content_upload_config .= "scp -r $name/* root@$ip:$path\n";
 
     if($total_scanners[$name] > 0) {
       $scanner_servers++;
@@ -777,13 +777,20 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
     // sanitize names
     $clean_name = str_replace(" ", "_", strtolower($name));
 
+    // separate server instances
+    $is_server = preg_match("/-cf server/i", $modes);
+
     if(preg_match("/-cf/i", $modes)) {
       // append path to config filename in -cf
       $modes = preg_replace('/-cf\s+/i', "-cf $server_path/$path_pogomap/config/", $modes);
     }
 
-    // separate server instances
-    if(preg_match("/-os/i", $modes)) {
+    if(preg_match("/-scf/i", $modes)) {
+      // append path to config filename in -scf
+      $modes = preg_replace('/-scf\s+/i', "-scf $server_path/$path_pogomap/config/", $modes);
+    }
+
+    if($is_server) {
       $index_server = ++$curr_server[$server];
 
       $message = "Server $index_server - $name - $modes";
@@ -867,7 +874,7 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
 
 
     // scanners
-    if(!preg_match("/-os/i", $modes)) {
+    if(!$is_server) {
       if ($st != '')
         $command .= " -st $st";
 
@@ -875,8 +882,7 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
         $command .= " -sd $sd";
 
       // -ari: Seconds for accounts to rest when they fail or are switched out. 0 to disable.
-      // disable db cleanup cycle if instance is not "only-server"
-      $command .= " -ari $account_rest_interval --disable-clean";
+      $command .= " -ari $account_rest_interval";
 
       if($index_scanner == 1 && $log_messages) {
         $command .= " -v $server_path/scanner-$log_filename";
